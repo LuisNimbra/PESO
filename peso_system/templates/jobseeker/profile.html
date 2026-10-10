@@ -8,6 +8,9 @@
 .skill-chip:hover { background:#eff6ff; border-color:#93c5fd; color:#2563eb; }
 .sec-head { font-size:.75rem; letter-spacing:.07em; text-transform:uppercase; color:var(--peso-muted); }
 .repeat-row { position:relative; }
+.avatar { width:110px; height:110px; border-radius:50%; overflow:hidden; display:flex; align-items:center;
+  justify-content:center; background:#eff6ff; color:#93c5fd; border:3px solid #dbeafe; font-size:3.6rem; }
+.avatar img { width:100%; height:100%; object-fit:cover; }
 </style>
 {% endblock %}
 
@@ -24,7 +27,31 @@
 </div>
 {% endif %}
 
-<form method="POST" action="{{ url_for('jobseeker_profile') }}">
+<form method="POST" action="{{ url_for('jobseeker_profile') }}" enctype="multipart/form-data">
+
+  <!-- Profile photo -->
+  <div class="card shadow-sm border-0 mb-3" style="border-radius:12px;">
+    <div class="card-body p-3 d-flex flex-column flex-sm-row align-items-center gap-3">
+      <div class="avatar-wrap">
+        <div class="avatar" id="avatar">
+          {% if ap.photo %}
+          <img src="{{ url_for('profile_photo', filename=ap.photo) }}" alt="Profile photo" id="avatar-img" />
+          {% else %}
+          <i class="bi bi-person-fill" id="avatar-icon"></i>
+          {% endif %}
+        </div>
+      </div>
+      <div class="text-center text-sm-start">
+        <p class="fw-semibold sec-head mb-1">Profile Photo</p>
+        <input type="file" name="photo" id="photo-input" accept="image/jpeg,image/png" hidden />
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('photo-input').click()">
+          <i class="bi bi-camera me-1"></i>Upload Photo
+        </button>
+        <div class="text-muted small mt-2" id="photo-hint">JPEG or PNG, max 2 MB. Click <strong>Save Profile</strong> to keep your new photo.</div>
+        <div class="text-danger small mt-1" id="photo-error"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- 1. Applicant Name -->
   <div class="card shadow-sm border-0 mb-3" style="border-radius:12px;">
@@ -437,6 +464,24 @@
     toggle('employed-fields', emp);
     toggle('unemployed-fields', !emp);
   }
+  var PHOTO_MAX = 2 * 1024 * 1024;
+  document.getElementById('photo-input').addEventListener('change', function () {
+    var f = this.files[0], err = document.getElementById('photo-error');
+    err.textContent = '';
+    if (!f) return;
+    if (['image/jpeg', 'image/png'].indexOf(f.type) === -1) {
+      err.textContent = 'Please choose a JPEG or PNG image.'; this.value = ''; return;
+    }
+    if (f.size > PHOTO_MAX) {
+      err.textContent = 'Photo is too large (max 2 MB).'; this.value = ''; return;
+    }
+    var box = document.getElementById('avatar');
+    box.innerHTML = '';
+    var img = document.createElement('img');
+    img.alt = 'Profile photo preview';
+    img.src = URL.createObjectURL(f);
+    box.appendChild(img);
+  });
   document.addEventListener('DOMContentLoaded', function () {
     empToggle();
     toggle('ofw-country', document.getElementById('is_ofw').checked);

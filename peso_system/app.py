@@ -18,7 +18,7 @@ from functools import wraps
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    session, flash, jsonify, g
+    session, flash, jsonify, g, send_from_directory, abort
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -34,6 +34,8 @@ app.config['SESSION_COOKIE_SECURE'] = os.environ.get('PESO_HTTPS', '0') == '1'
 BASE_DIR       = os.path.dirname(os.path.abspath(__file__))
 DATABASE       = os.path.join(BASE_DIR, 'peso.db')
 PIPELINE_PATH  = os.path.join(BASE_DIR, 'ml', 'recommendation_pipeline.pkl')
+PHOTO_DIR      = os.path.join(BASE_DIR, 'uploads', 'photos')
+PHOTO_MAX_BYTES = 2 * 1024 * 1024   # 2 MB
 
 # ── ROLE CONSTANTS ────────────────────────────────────────────────────────────
 ROLE_ADMIN     = 'admin'
@@ -378,6 +380,7 @@ def init_db():
         ('languages', 'TEXT'), ('education', 'TEXT'), ('trainings', 'TEXT'),
         ('eligibilities', 'TEXT'), ('work_history', 'TEXT'), ('other_skills', 'TEXT'),
         ('certified', 'INTEGER DEFAULT 0'), ('certified_at', 'DATETIME'),
+        ('photo', 'TEXT'),
     ]:
         if col not in acols:
             db.execute(f'ALTER TABLE applicants ADD COLUMN {col} {ddl}')
@@ -1060,6 +1063,36 @@ def _get_my_applicant():
         'SELECT * FROM applicants WHERE user_id=?', (session['user_id'],)
     ).fetchone()
 
+def _save_profile_photo(file, applicant):
+    """Validate and store an uploaded profile photo (JPEG/PNG, max 2 MB).
+    Returns (filename, error). The file type is checked by its magic bytes,
+    not just the extension."""
+    data = file.read(PHOTO_MAX_BYTES + 1)
+    if len(data) > PHOTO_MAX_BYTES:
+        return None, 'Photo is too large (max 2 MB).'
+    if data.startswith(b'\xff\xd8\xff'):
+        ext = 'jpg'
+    elif data.startswith(b'\x89PNG\r\n\x1a\n'):
+        ext = 'png'
+    else:
+        return None, 'Photo must be a JPEG or PNG image.'
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    name = f"ap{applicant['id']}_{secrets.token_hex(8)}.{ext}"
+    with open(os.path.join(PHOTO_DIR, name), 'wb') as out:
+        out.write(data)
+    old = applicant['photo']
+    if old:
+        try:
+            os.remove(os.path.join(PHOTO_DIR, os.path.basename(old)))
+        except OSError:
+            pass
+    return name, None
+
+@app.route('/photos/<path:filename>')
+@login_required
+def profile_photo(filename):
+    return send_from_directory(PHOTO_DIR, os.path.basename(filename))
+
 def _active_referral(applicant_id):
     """The applicant's current active (not-withdrawn) referral, if any.
     An applicant may hold only one active referral at a time."""
@@ -1214,6 +1247,13 @@ def jobseeker_profile():
             1 if f.get('certify') else 0,
             ap['id'],
         ))
+        photo = request.files.get('photo')
+        if photo and photo.filename:
+            name, err = _save_profile_photo(photo, ap)
+            if err:
+                flash(err, 'warning')
+            else:
+                db.execute('UPDATE applicants SET photo=? WHERE id=?', (name, ap['id']))
         db.commit()
         flash('Profile saved.', 'success')
         return redirect(url_for('jobseeker_profile'))
