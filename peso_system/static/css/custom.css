@@ -567,9 +567,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 /* ── LANDING PAGE (theme-aware) ──────────────────────────────────────────── */
 .feature-card, .step-row {
-  background: var(--peso-surface);
-  border: 1px solid var(--peso-border);
+  --accent: #2563eb;
+  background: color-mix(in srgb, var(--accent) 9%, var(--peso-surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--peso-border));
 }
+.accent-blue   { --accent: #2563eb; }
+.accent-green  { --accent: #16a34a; }
+.accent-orange { --accent: #f59e0b; }
 
 /* ── DARK THEME TOKENS ────────────────────────────────────────────────────
    Applied when <html data-theme="dark">. Paired with data-bs-theme="dark"
