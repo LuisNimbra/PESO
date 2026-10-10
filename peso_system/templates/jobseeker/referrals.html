@@ -1,0 +1,96 @@
+{% extends 'base_jobseeker.html' %}
+{% block title %}My Applications{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+  <div>
+    <h4 class="fw-bold mb-0">My Applications</h4>
+    <p class="text-muted small mb-0">Track all the jobs you have applied for.</p>
+  </div>
+  <a href="{{ url_for('jobseeker_recommendations') }}" class="btn btn-primary btn-sm fw-semibold">
+    <i class="bi bi-stars me-1"></i>Find Jobs
+  </a>
+</div>
+
+{% if my_referrals %}
+<div class="card shadow-sm border-0" style="border-radius:12px;overflow:hidden;">
+  <div class="table-responsive">
+  <table class="table table-hover mb-0">
+    <thead style="background:#f8fafc;font-size:.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">
+      <tr>
+        <th class="px-3 py-2">Position</th>
+        <th class="py-2">Employer</th>
+        <th class="py-2">Category</th>
+        <th class="py-2">ML Match</th>
+        <th class="py-2">Applied</th>
+        <th class="py-2">Status</th>
+        <th class="py-2">Slip</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in my_referrals %}
+      <tr>
+        <td class="px-3 py-2 fw-semibold small">{{ r.job_title }}</td>
+        <td class="py-2 small text-muted">{{ r.employer_name }}</td>
+        <td class="py-2">
+          <span class="badge bg-primary-subtle text-primary-emphasis" style="font-size:.65rem;">{{ r.occupational_category }}</span>
+        </td>
+        <td class="py-2">
+          {% if r.suitability_score is not none %}
+          <span class="badge bg-info-subtle text-info-emphasis" style="font-size:.65rem;">{{ '%.0f'|format(r.suitability_score * 100) }}%</span>
+          {% else %}
+          <span class="text-muted small">—</span>
+          {% endif %}
+        </td>
+        <td class="py-2 small text-muted">{{ r.referred_at|friendly_dt }}</td>
+        <td class="py-2">
+          {% if r.status == 'cancelled' %}
+          <span class="badge bg-danger-subtle text-danger-emphasis">Cancelled</span>
+          {% elif r.status == 'referred' %}
+          <span class="badge bg-success-subtle text-success-emphasis"><i class="bi bi-check-circle-fill me-1"></i>Applied</span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ r.status }}</span>
+          {% endif %}
+        </td>
+        <td class="py-2">
+          {% if r.status == 'cancelled' %}
+          <span class="text-muted small">—</span>
+          {% else %}
+          <div class="d-flex gap-1">
+            <a href="{{ url_for('referral_slip', rid=r.id) }}" target="_blank"
+               class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:.72rem;">
+              <i class="bi bi-file-earmark-text me-1"></i>View Slip
+            </a>
+            {% if r.status == 'referred' %}
+            <form method="POST" action="{{ url_for('jobseeker_cancel_referral', rid=r.id) }}">
+              <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:.72rem;"
+                      onclick="return confirm('Withdraw your application for &quot;{{ r.job_title }}&quot;? This cannot be undone, but you can re-apply later.')">
+                <i class="bi bi-x-circle me-1"></i>Withdraw
+              </button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+{% else %}
+<div class="text-center py-4">
+  <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+       style="width:56px;height:56px;background:#f1f5f9;">
+    <i class="bi bi-send" style="font-size:1.4rem;color:#cbd5e1;"></i>
+  </div>
+  <h6 class="fw-semibold">No applications yet</h6>
+  <p class="text-muted small mb-3">Generate recommendations and click Apply on a job you're interested in.</p>
+  <a href="{{ url_for('jobseeker_recommendations') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-stars me-1"></i>View Recommendations
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}{% if action == 'add' %}Add Admin Account{% else %}Edit Admin Account{% endif %}{% endblock %}
+{% block page_title %}
+  <i class="bi bi-person-{% if action == 'add' %}plus{% else %}pencil{% endif %}-fill me-2"></i>
+  {% if action == 'add' %}Add Admin Account{% else %}Edit Admin Account{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm" style="max-width:520px;">
+  <div class="card-header fw-semibold">
+    {% if action == 'add' %}New Admin Account{% else %}Edit Account{% endif %}
+  </div>
+  <div class="card-body">
+    <form method="POST"
+          action="{% if action == 'add' %}{{ url_for('user_add') }}{% else %}{{ url_for('user_edit', uid=user.id) }}{% endif %}">
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+        <input type="text" name="full_name" class="form-control"
+               value="{{ user.full_name if user else '' }}" required maxlength="100" />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+        <input type="email" name="email" class="form-control"
+               value="{{ user.email if user else '' }}" required autocomplete="off" maxlength="254" />
+      </div>
+
+      <input type="hidden" name="role" value="admin" />
+
+      {% if action == 'add' %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <input type="password" name="password" class="form-control" required
+                 minlength="8" maxlength="64" autocomplete="new-password" />
+          <button class="btn btn-outline-secondary" type="button"
+                  onclick="togglePw(this)" aria-label="Show or hide password">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+        <div class="form-text">Minimum 8 characters.</div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <input type="password" name="confirm_password" class="form-control"
+                 required maxlength="64" autocomplete="new-password" />
+          <button class="btn btn-outline-secondary" type="button"
+                  onclick="togglePw(this)" aria-label="Show or hide password">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+      {% else %}
+      <hr class="my-3" />
+      <p class="fw-semibold small text-muted mb-2">
+        <i class="bi bi-key-fill me-1"></i>Change Password
+      </p>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">New Password</label>
+        <div class="input-group">
+          <input type="password" name="new_password" class="form-control"
+                 autocomplete="new-password" minlength="8" maxlength="64"
+                 placeholder="Leave blank to keep current password" />
+          <button class="btn btn-outline-secondary" type="button"
+                  onclick="togglePw(this)" aria-label="Show or hide password">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+        <div class="form-text">Minimum 8 characters if changing.</div>
+      </div>
+      {% endif %}
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary fw-semibold">
+          <i class="bi bi-save me-1"></i>
+          {% if action == 'add' %}Create Account{% else %}Save Changes{% endif %}
+        </button>
+        <a href="{{ url_for('users_list') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function togglePw(btn) {
+    const input = btn.parentElement.querySelector('input');
+    const icon  = btn.querySelector('i');
+    const show  = input.type === 'password';
+    input.type  = show ? 'text' : 'password';
+    icon.classList.toggle('bi-eye', !show);
+    icon.classList.toggle('bi-eye-slash', show);
+  }
+</script>
+{% endblock %}
