@@ -1,0 +1,471 @@
+{% extends 'base.html' %}
+{% block title %}Analytical Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-bar-chart-fill me-2"></i>Analytical Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* ── DESKTOP: cards size to content, capped so sparse data doesn't stretch ─── */
+  .af-root   { display: flex; flex-direction: column; gap: .85rem; }
+  .af-charts { display: flex; align-items: stretch; gap: .85rem; }
+  .af-charts > .af-col { min-width: 0; display: flex; flex-direction: column; }
+
+  .fill-card              { height: 380px; display: flex; flex-direction: column; }
+  .fill-card .card-body   { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+
+  .cv-wrap { position: relative; height: 100%; }
+
+  /* ── TABLET (<992px): stack the three figures so none get squeezed ─────────── */
+  @media (max-width: 991.98px) {
+    .af-charts              { flex-direction: column; gap: .85rem; }
+    .af-charts > .af-col    { width: 100%; }
+
+    /* Give each card a sensible fixed height */
+    .fill-card              { height: auto; min-height: 320px; }
+    .fill-card .card-body   { min-height: 280px; overflow: hidden; }
+    .cv-wrap                { height: 260px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="af-root">
+
+  <!-- ── Date filter (slim card, unified with the metrics below) ─────────────── -->
+  <div class="card shadow-sm" style="flex-shrink:0;">
+    <div class="card-body d-flex flex-wrap align-items-center gap-2 py-2 px-3">
+      <span class="fw-semibold small text-muted">
+        <i class="bi bi-calendar3 me-1"></i>Filter by Registration Date:
+      </span>
+      <input type="date" id="date-from" class="form-control form-control-sm" style="width:auto;" />
+      <span class="text-muted small">to</span>
+      <input type="date" id="date-to"   class="form-control form-control-sm" style="width:auto;" />
+      <button class="btn btn-sm btn-primary" onclick="loadCharts()">Apply</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="
+        var f=document.getElementById('date-from');
+        var t=document.getElementById('date-to');
+        f.value=''; f.removeAttribute('max');
+        t.value=''; t.removeAttribute('min');
+        loadCharts();">Clear</button>
+      <span class="vr mx-1 d-none d-sm-inline"></span>
+      <button class="btn btn-sm filter-chip btn-outline-secondary" onclick="setDatePreset('month')">This Month</button>
+      <button class="btn btn-sm filter-chip btn-outline-secondary" onclick="setDatePreset('year')">This Year</button>
+      <span class="text-muted small ms-1" id="date-label"></span>
+    </div>
+  </div>
+
+  <!-- ── Row 1: Hero + 3 stat cards ────────────────────────────────────────── -->
+  <div class="row g-3" style="flex-shrink:0;">
+
+    <!-- Hero: Total + Sex -->
+    <div class="col-md-8">
+      <div class="card shadow-sm h-100 border-0"
+           style="background:linear-gradient(135deg, var(--peso-dark), var(--peso-blue));color:#fff;">
+        <div class="card-body py-2 px-3">
+          <div class="d-flex align-items-center justify-content-center gap-3 h-100">
+
+            <!-- Total -->
+            <div class="text-center" style="min-width:130px;">
+              <div class="fw-bold lh-1" id="stat-total"
+                   style="font-size:2rem;letter-spacing:-1px;">—</div>
+              <div style="opacity:.8;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;margin-top:3px;">
+                Registered Job Seekers
+              </div>
+            </div>
+
+            <div style="width:1px;height:48px;background:rgba(255,255,255,.3);flex-shrink:0;"></div>
+
+            <!-- Sex breakdown -->
+            <div class="d-flex gap-4">
+              <div class="text-center">
+                <div class="fw-bold lh-1" id="stat-male-pct"
+                     style="font-size:1.35rem;">—</div>
+                <div style="opacity:.75;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">
+                  <i class="bi bi-gender-male"></i> Male
+                </div>
+                <div id="stat-male-count" style="opacity:.65;font-size:.76rem;">—</div>
+              </div>
+              <div class="text-center">
+                <div class="fw-bold lh-1" id="stat-female-pct"
+                     style="font-size:1.35rem;">—</div>
+                <div style="opacity:.75;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">
+                  <i class="bi bi-gender-female"></i> Female
+                </div>
+                <div id="stat-female-count" style="opacity:.65;font-size:.76rem;">—</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Youth · Senior · PWD -->
+    <div class="col-md-4">
+      <div class="row g-3 h-100">
+
+        <div class="col-4">
+          <div class="card stat-card shadow-sm h-100">
+            <div class="card-body text-center py-2 px-1">
+              <div class="stat-icon" style="font-size:1.15rem;color:var(--peso-blue);">
+                <i class="bi bi-mortarboard-fill"></i>
+              </div>
+              <div class="stat-value" id="stat-youth" style="font-size:1.1rem;">—</div>
+              <div class="stat-label" style="font-size:.68rem;">Youths</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-4">
+          <div class="card stat-card shadow-sm h-100">
+            <div class="card-body text-center py-2 px-1">
+              <div class="stat-icon" style="font-size:1.15rem;color:var(--peso-chart-amber);">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <div class="stat-value" id="stat-senior" style="font-size:1.1rem;">—</div>
+              <div class="stat-label" style="font-size:.68rem;">Senior Citizens</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-4">
+          <div class="card stat-card shadow-sm h-100">
+            <div class="card-body text-center py-2 px-1">
+              <div class="stat-icon" style="font-size:1.15rem;color:var(--peso-chart-teal);">
+                <i class="bi bi-universal-access"></i>
+              </div>
+              <div class="stat-value" id="stat-pwd" style="font-size:1.1rem;">—</div>
+              <div class="stat-label" style="font-size:.68rem;">Persons w/ Disability</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /Row 1 -->
+
+  <!-- ── Row 2: Figures 1 · 2 · 3 ──────────────────────────────────────────── -->
+  <div class="af-charts">
+
+    <!-- Figure 1 — Education -->
+    <div class="af-col" style="flex:4;">
+      <div class="card shadow-sm fill-card">
+        <div class="card-header py-1 small fw-semibold">
+          <i class="bi bi-mortarboard-fill me-1" style="color:var(--peso-blue);"></i>
+          Educational Attainment
+        </div>
+        <div class="card-body p-2">
+          <div class="cv-wrap">
+            <canvas id="chart-educ"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Figure 2 — Employment -->
+    <div class="af-col" style="flex:3;">
+      <div class="card shadow-sm fill-card">
+        <div class="card-header py-1 small fw-semibold">
+          <i class="bi bi-briefcase-fill me-1" style="color:var(--peso-blue);"></i>
+          Employment Status
+        </div>
+        <div class="card-body p-2 d-flex flex-column align-items-center">
+          <div class="cv-wrap w-100" style="flex:1;min-height:0;">
+            <canvas id="chart-emp"></canvas>
+          </div>
+          <div id="emp-summary" class="text-muted text-center lh-sm"
+               style="font-size:.78rem;flex-shrink:0;margin-top:4px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Figure 3 — Barangay -->
+    <div class="af-col" style="flex:5;">
+      <div class="card shadow-sm fill-card">
+        <div class="card-header py-1 small fw-semibold">
+          <i class="bi bi-geo-alt-fill me-1" style="color:var(--peso-blue);"></i>
+          Jobseekers by Barangay
+        </div>
+        <!-- Two district columns side by side, each independently scrollable -->
+        <div class="card-body p-0 d-flex" style="overflow:hidden;">
+
+          <!-- District I -->
+          <div class="d-flex flex-column border-end" style="flex:1;min-height:0;">
+            <div class="py-1 text-center fw-bold text-uppercase"
+                 style="font-size:.72rem;letter-spacing:.06em;background:var(--peso-cta-a);color:var(--peso-blue);flex-shrink:0;">
+              <i class="bi bi-geo-alt-fill me-1"></i>District I
+            </div>
+            <div style="flex:1;overflow-y:auto;min-height:0;">
+              <table class="table table-sm table-hover mb-0" style="font-size:.78rem;">
+                <tbody id="tbody-d1"></tbody>
+                <tfoot>
+                  <tr class="fw-semibold table-primary">
+                    <td>Total</td>
+                    <td class="text-end" id="tfoot-d1">—</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- District II -->
+          <div class="d-flex flex-column" style="flex:1;min-height:0;">
+            <div class="py-1 text-center fw-bold text-uppercase"
+                 style="font-size:.72rem;letter-spacing:.06em;background:var(--peso-cta-a);color:var(--peso-blue);flex-shrink:0;">
+              <i class="bi bi-geo-alt-fill me-1"></i>District II
+            </div>
+            <div style="flex:1;overflow-y:auto;min-height:0;">
+              <table class="table table-sm table-hover mb-0" style="font-size:.78rem;">
+                <tbody id="tbody-d2"></tbody>
+                <tfoot>
+                  <tr class="fw-semibold table-primary">
+                    <td>Total</td>
+                    <td class="text-end" id="tfoot-d2">—</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /Row 2 -->
+
+</div><!-- /af-root -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+function chartThemeColors() {
+  const s = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (s.getPropertyValue(name) || fallback).trim();
+  return {
+    text:   v('--peso-muted', '#64748b'),
+    grid:   v('--peso-border', '#e5e9f0'),
+    blue:   v('--peso-blue', '#2563eb'),
+    good:   v('--peso-status-good', '#0ca30c'),
+  };
+}
+
+const barValueLabelPlugin = {
+  id: 'barValueLabel',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const c = chartThemeColors();
+    chart.data.datasets.forEach((dataset, i) => {
+      const meta = chart.getDatasetMeta(i);
+      meta.data.forEach((bar, index) => {
+        const value = dataset.data[index];
+        ctx.save();
+        ctx.fillStyle = c.text;
+        ctx.font = '600 11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(value.toLocaleString(), bar.x + 6, bar.y);
+        ctx.restore();
+      });
+    });
+  }
+};
+
+function hBar(ctx, labels, values) {
+  const c = chartThemeColors();
+  return new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: c.blue,
+        borderRadius: 3,
+        barPercentage: 0.55,
+        categoryPercentage: 0.8,
+        maxBarThickness: 40,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      layout: { padding: { right: 28 } },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0, font: { size: 11 }, color: c.text }, grid: { color: c.grid } },
+        y: { ticks: { font: { size: 11 }, color: c.text }, grid: { display: false } },
+      },
+    },
+    plugins: [barValueLabelPlugin],
+  });
+}
+
+const donutCenterTotalPlugin = {
+  id: 'donutCenterTotal',
+  afterDraw(chart) {
+    const { ctx, chartArea: { width, height, top, left } } = chart;
+    const c = chartThemeColors();
+    const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+    const cx = left + width / 2;
+    const cy = top + height / 2;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = c.text;
+    ctx.font = '700 22px sans-serif';
+    ctx.fillText(total.toLocaleString(), cx, cy - 8);
+    ctx.font = '600 10px sans-serif';
+    ctx.fillText('TOTAL', cx, cy + 10);
+    ctx.restore();
+  }
+};
+
+function donut(ctx, labels, values) {
+  const c = chartThemeColors();
+  const EMP_COLORS = { 'Employed': c.good, 'Unemployed': c.text };
+  const colors = labels.map(l => EMP_COLORS[l] || c.grid);
+  return new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10, padding: 8, color: c.text } }
+      },
+      cutout: '60%',
+    },
+    plugins: [donutCenterTotalPlugin],
+  });
+}
+
+let _charts = {};
+function destroyChart(id) {
+  if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; }
+}
+
+function fillTable(tbodyId, tfootId, labels, values, accentColor) {
+  const tbody = document.getElementById(tbodyId);
+  const tfoot = document.getElementById(tfootId);
+  tbody.innerHTML = '';
+  const max = Math.max(1, ...values);
+  let total = 0;
+  labels.forEach((lbl, i) => {
+    const v = values[i] || 0;
+    total += v;
+    const pct = Math.round((v / max) * 100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div>${lbl}</div>
+        <div style="height:4px;border-radius:2px;background:var(--peso-progress-bg);overflow:hidden;margin-top:2px;">
+          <div style="height:100%;width:${pct}%;background:${accentColor};border-radius:2px;"></div>
+        </div>
+      </td>
+      <td class="text-end fw-semibold align-middle">${v.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+  tfoot.textContent = total.toLocaleString();
+}
+
+function setDatePreset(range) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let start;
+  if (range === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (range === 'year') {
+    start = new Date(now.getFullYear(), 0, 1);
+  } else {
+    return;
+  }
+  const from = document.getElementById('date-from');
+  const to   = document.getElementById('date-to');
+  from.value = iso(start);
+  to.value   = iso(now);
+  to.min     = from.value;
+  from.max   = to.value;
+  loadCharts();
+}
+
+function loadCharts() {
+  const from = document.getElementById('date-from').value;
+  const to   = document.getElementById('date-to').value;
+  const qs   = new URLSearchParams();
+  if (from) qs.set('date_from', from);
+  if (to)   qs.set('date_to',   to);
+  document.getElementById('date-label').textContent =
+    (from || to) ? `Showing: ${from || '…'} → ${to || '…'}` : 'Showing: all dates';
+
+  fetch('/api/analytics?' + qs.toString())
+    .then(r => r.json())
+    .then(data => {
+      const js = data.jobseekers;
+
+      // Hero
+      document.getElementById('stat-total').textContent = js.total.toLocaleString();
+      const sexKnown = js.male + js.female;
+      const pct = n => sexKnown ? (n / sexKnown * 100).toFixed(2) + '%' : '—';
+      document.getElementById('stat-male-pct').textContent    = pct(js.male);
+      document.getElementById('stat-female-pct').textContent  = pct(js.female);
+      document.getElementById('stat-male-count').textContent   = js.male.toLocaleString();
+      document.getElementById('stat-female-count').textContent = js.female.toLocaleString();
+
+      // Stat cards
+      document.getElementById('stat-youth').textContent  = js.youth.toLocaleString();
+      document.getElementById('stat-senior').textContent = js.senior.toLocaleString();
+      document.getElementById('stat-pwd').textContent    = js.pwd.toLocaleString();
+
+      // Figure 1
+      destroyChart('chart-educ');
+      _charts['chart-educ'] = hBar(
+        document.getElementById('chart-educ'),
+        js.educ_labels, js.educ_values
+      );
+
+      // Figure 2
+      destroyChart('chart-emp');
+      _charts['chart-emp'] = donut(
+        document.getElementById('chart-emp'),
+        js.emp_labels, js.emp_values
+      );
+      const empSummary = document.getElementById('emp-summary');
+      if (js.emp_labels && js.total > 0) {
+        empSummary.innerHTML = js.emp_labels.map((lbl, i) => {
+          const v = js.emp_values[i] || 0;
+          return `<strong>${lbl}</strong>: ${v.toLocaleString()} (${(v / js.total * 100).toFixed(2)}%)`;
+        }).join('<br>');
+      }
+
+      // Figure 3
+      fillTable('tbody-d1', 'tfoot-d1', js.d1_labels, js.d1_values, chartThemeColors().blue);
+      fillTable('tbody-d2', 'tfoot-d2', js.d2_labels, js.d2_values, chartThemeColors().blue);
+    })
+    .catch(err => console.error('Analytics API error:', err));
+}
+
+document.addEventListener('DOMContentLoaded', loadCharts);
+
+// Date range enforcement — second date must always be after the first
+(function () {
+  var from = document.getElementById('date-from');
+  var to   = document.getElementById('date-to');
+  if (!from || !to) return;
+  from.addEventListener('change', function () {
+    to.min = this.value || '';
+    if (to.value && to.value < this.value) to.value = '';
+  });
+  to.addEventListener('change', function () {
+    from.max = this.value || '';
+    if (from.value && from.value > this.value) from.value = '';
+  });
+}());
+
+// Re-render charts with the new theme's colors when dark mode is toggled
+new MutationObserver(loadCharts).observe(document.documentElement, {
+  attributes: true, attributeFilter: ['data-theme']
+});
+</script>
+{% endblock %}

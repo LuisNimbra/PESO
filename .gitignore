@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Flask
+instance/
+.webassets-cache
+*.db
+*.sqlite
+*.sqlite3
+# Track the seeded demo database so it deploys with the app
+!peso_system/peso.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+peso_system/__pycache__/
+peso_system/*.pyc
+peso_system/uploads/*
+!peso_system/uploads/.gitkeep
+
+# Logs
+*.log
+flask.log
+
+# Virtual environments
+.env
+.env.local
