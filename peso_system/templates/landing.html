@@ -1,5 +1,6 @@
 {% extends 'base_public.html' %}
 {% block title %}Welcome{% endblock %}
+{% block nav_signin %}{% endblock %}
 
 {% block head %}
 <style>
@@ -11,8 +12,11 @@
 }
 .hero h1 { font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 800; }
 .hero p  { font-size: 1.05rem; opacity: .85; max-width: 600px; margin: 1rem auto 0; }
-.hero-btns { margin-top: 2.2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-.hero-btns .btn { padding: .65rem 1.6rem; font-weight: 600; font-size: .95rem; border-radius: 8px; }
+.hero-cta { margin-top: 2.2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.hero-signin, .hero-create { width: 260px; padding: .75rem 1.5rem; font-size: 1rem; border-radius: 8px; }
+.hero-signin { font-weight: 700; background: #f59e0b; border-color: #f59e0b; color: #1e3a5f; }
+.hero-signin:hover { background: #fbbf24; border-color: #fbbf24; color: #1e3a5f; }
+.hero-create:hover { color: #1e3a5f; }
 .feature-section { padding: 3.5rem 1.5rem; }
 .feature-card {
   border-radius: 12px;
@@ -42,10 +46,12 @@
     </div>
     <h1>Find a Job, Online</h1>
     <p>The PESO CSJDM job matching portal. Jobseekers get matched to the right jobs and receive a referral online. Employers post vacancies and receive matched applicants. No more waiting in line at the office.</p>
-    <p class="mt-4 mb-0" style="opacity:.85;font-size:.95rem;">New here? Create an account to get started.</p>
-    <div class="hero-btns" style="margin-top:.8rem;">
-      <a href="{{ url_for('register') }}" class="btn btn-light text-primary fw-bold">
-        <i class="bi bi-person-plus me-2"></i>Get Started
+    <div class="hero-cta">
+      <a href="{{ url_for('login') }}" class="btn fw-bold hero-signin">
+        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+      </a>
+      <a href="{{ url_for('register') }}" class="btn btn-outline-light fw-semibold hero-create">
+        <i class="bi bi-person-plus me-2"></i>Create New Account
       </a>
     </div>
   </div>
