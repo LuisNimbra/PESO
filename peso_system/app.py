@@ -21,6 +21,7 @@ from flask import (
     session, flash, jsonify, g, send_from_directory, abort
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 # ── APP CONFIG ────────────────────────────────────────────────────────────────
 app = Flask(__name__)
@@ -36,6 +37,8 @@ DATABASE       = os.path.join(BASE_DIR, 'peso.db')
 PIPELINE_PATH  = os.path.join(BASE_DIR, 'ml', 'recommendation_pipeline.pkl')
 PHOTO_DIR      = os.path.join(BASE_DIR, 'uploads', 'photos')
 PHOTO_MAX_BYTES = 2 * 1024 * 1024   # 2 MB
+CERT_DIR       = os.path.join(BASE_DIR, 'uploads', 'certificates')
+CERT_MAX_BYTES = 5 * 1024 * 1024    # 5 MB
 
 # ── ROLE CONSTANTS ────────────────────────────────────────────────────────────
 ROLE_ADMIN     = 'admin'
@@ -51,6 +54,13 @@ CATEGORIES = {
     4: 'General Services and Security',
 }
 CATEGORY_LIST = list(CATEGORIES.values())
+
+ELIG_TYPES = [
+    'Civil Service Eligibility',
+    'Professional Regulation Commission (PRC) License',
+    "Driver's License",
+    'National Certificate (TESDA NC)',
+]
 
 EDUC_LEVELS = [
     'Elementary Level', 'Elementary Graduate',
@@ -850,6 +860,14 @@ def friendly_dt(value):
             continue
     return str(value)
 
+@app.template_filter('monthyear')
+def monthyear_filter(v):
+    """'2026-03' -> 'March 2026'; anything else is returned unchanged."""
+    try:
+        return datetime.strptime(v, '%Y-%m').strftime('%B %Y')
+    except (ValueError, TypeError):
+        return v or ''
+
 @app.template_filter('friendly_date')
 def friendly_date(value):
     if not value:
@@ -1096,6 +1114,37 @@ def _save_profile_photo(file, applicant):
             pass
     return name, None
 
+def _save_certificate(file, applicant):
+    """Validate and store a training certificate (PDF/JPEG/PNG, max 5 MB).
+    Returns (stored_name, display_name, error); type is checked by magic bytes."""
+    data = file.read(CERT_MAX_BYTES + 1)
+    if len(data) > CERT_MAX_BYTES:
+        return None, None, 'Certificate is too large (max 5 MB).'
+    if data.startswith(b'%PDF-'):
+        ext = 'pdf'
+    elif data.startswith(b'\xff\xd8\xff'):
+        ext = 'jpg'
+    elif data.startswith(b'\x89PNG\r\n\x1a\n'):
+        ext = 'png'
+    else:
+        return None, None, 'Certificate must be a PDF, JPG or PNG file.'
+    os.makedirs(CERT_DIR, exist_ok=True)
+    name = f"cert{applicant['id']}_{secrets.token_hex(8)}.{ext}"
+    with open(os.path.join(CERT_DIR, name), 'wb') as out:
+        out.write(data)
+    shown = secure_filename(os.path.basename(file.filename or '')) or f'certificate.{ext}'
+    return name, shown[:80], None
+
+@app.route('/certificates/<path:filename>')
+@login_required
+def certificate_file(filename):
+    filename = os.path.basename(filename)
+    if session.get('role') == ROLE_JOBSEEKER:
+        ap = _get_my_applicant()
+        if not ap or not filename.startswith(f"cert{ap['id']}_"):
+            abort(404)
+    return send_from_directory(CERT_DIR, filename)
+
 @app.route('/photos/<path:filename>')
 @login_required
 def profile_photo(filename):
@@ -1189,8 +1238,35 @@ def jobseeker_profile():
             return out
 
         education   = rows('edu',  ['level', 'school', 'course', 'year', 'awards'])
-        trainings   = rows('trn',  ['course', 'institution', 'hours', 'certificate'])
-        eligibils   = rows('elig', ['title', 'rating', 'date'])
+        # trainings: text fields + optional certificate upload (kept per row by position)
+        try:
+            old_trn = json.loads(ap['trainings'] or '[]')
+        except (ValueError, TypeError):
+            old_trn = []
+        old_certs = {t.get('cert_file') for t in old_trn if t.get('cert_file')}
+        cols = {k: f.getlist(f'trn_{k}[]') for k in ('course', 'institution', 'hours', 'certificate', 'cert_file')}
+        uploads = request.files.getlist('trn_cert_upload[]')
+        trainings = []
+        for i in range(len(cols['course'])):
+            cell = lambda k: (cols[k][i].strip() if i < len(cols[k]) else '')
+            row = {k: cell(k) for k in ('course', 'institution', 'hours', 'certificate', 'cert_file')}
+            if row['cert_file'] not in old_certs:     # only keep files this applicant already owns
+                row['cert_file'] = row['certificate'] = ''
+            up = uploads[i] if i < len(uploads) else None
+            if up and up.filename:
+                stored, shown, err = _save_certificate(up, ap)
+                if err:
+                    flash(f"{err} ({row['course'] or 'training'})", 'warning')
+                else:
+                    row['cert_file'], row['certificate'] = stored, shown
+            if any(row.values()):
+                trainings.append(row)
+        new_certs = {t['cert_file'] for t in trainings if t['cert_file']}
+        eligibils   = []
+        for r in rows('elig', ['type', 'other', 'rating', 'date']):
+            title = r['other'] if r['type'] == 'Others' else r['type']
+            if title or r['rating'] or r['date']:
+                eligibils.append({'title': title, 'rating': r['rating'], 'date': r['date']})
         work_hist   = rows('we',   ['company', 'address', 'position', 'months', 'status'])
 
         languages = []
@@ -1281,6 +1357,11 @@ def jobseeker_profile():
             else:
                 db.execute('UPDATE applicants SET photo=? WHERE id=?', (name, ap['id']))
         db.commit()
+        for gone in old_certs - new_certs:          # certificates removed or replaced
+            try:
+                os.remove(os.path.join(CERT_DIR, os.path.basename(gone)))
+            except OSError:
+                pass
         flash('Profile saved.', 'success')
         return redirect(url_for('jobseeker_profile'))
 
@@ -1297,7 +1378,7 @@ def jobseeker_profile():
                            barangay_district_map=BARANGAY_DISTRICT,
                            positions=PREFERRED_POSITIONS, skills_list=SKILLS_LIST,
                            suffixes=SUFFIX_CHOICES, civil_statuses=CIVIL_STATUS_CHOICES,
-                           religions=RELIGION_CHOICES, disability_types=DISABILITY_TYPES,
+                           elig_types=ELIG_TYPES, religions=RELIGION_CHOICES, disability_types=DISABILITY_TYPES,
                            languages_list=LANGUAGE_CHOICES, employed_types=EMPLOYED_TYPES,
                            unemployed_reasons=UNEMPLOYED_REASONS,
                            work_status_choices=WORK_STATUS_CHOICES,

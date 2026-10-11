@@ -39,6 +39,53 @@
 {% endblock %}
 
 {% block content %}
+{% macro elig_row(el) %}
+{% set t = el.title if el else '' %}
+{% set known = t in elig_types %}
+{% set d = el.date if el and el.date else '' %}
+{% set d_ok = d|length == 7 and d[4] == '-' %}
+<div class="repeat-row row g-2 border rounded p-2 elig-row">
+  <div class="col-md-4">
+    <label class="form-label small text-muted mb-1">Eligibility / License</label>
+    <select name="elig_type[]" class="form-select form-select-sm elig-type">
+      <option value="">Select type</option>
+      {% for o in elig_types %}<option value="{{ o }}" {% if t == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+      <option value="Others" {% if t and not known %}selected{% endif %}>Others</option>
+    </select>
+    <input type="text" name="elig_other[]" class="form-control form-control-sm mt-1 elig-other" maxlength="120" placeholder="Specify eligibility / license" value="{{ t if t and not known else '' }}" style="display:none;" />
+  </div>
+  <div class="col-md-3">
+    <label class="form-label small text-muted mb-1">Rating / License no.</label>
+    <input name="elig_rating[]" class="form-control form-control-sm" maxlength="40" placeholder="Rating / License no." value="{{ el.rating if el else '' }}" />
+  </div>
+  <div class="col-md-5">
+    <label class="form-label small text-muted mb-1 elig-date-label">Month / Year</label>
+    <div class="d-flex gap-1">
+      <input type="text" name="elig_date[]" class="elig-date" autocomplete="off" value="{{ d if d_ok else '' }}" {% if d and not d_ok %}data-legacy="{{ d }}"{% endif %} />
+      <button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro cert_cell(t) %}
+<div class="col-md-4">
+  <div class="cert-cell d-flex gap-1 align-items-center">
+    <input type="hidden" name="trn_certificate[]" value="{{ t.certificate if t else '' }}" />
+    <input type="hidden" name="trn_cert_file[]" value="{{ t.cert_file if t else '' }}" />
+    <input type="file" name="trn_cert_upload[]" class="cert-input" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" hidden />
+    <button type="button" class="btn btn-sm btn-outline-secondary cert-pick text-truncate"><i class="bi bi-paperclip me-1"></i>Upload Certificate (Optional)</button>
+    <span class="cert-chip badge bg-primary-subtle text-primary-emphasis border d-none align-items-center gap-1 text-start" style="min-width:0;max-width:100%;">
+      <i class="bi bi-file-earmark-check"></i>
+      {% if t and t.cert_file %}<a class="cert-name text-truncate text-reset" target="_blank" href="{{ url_for('certificate_file', filename=t.cert_file) }}">{{ t.certificate or 'Certificate' }}</a>{% else %}<span class="cert-name text-truncate"></span>{% endif %}
+      <button type="button" class="btn-close cert-remove" style="font-size:.6rem;" aria-label="Remove certificate"></button>
+    </span>
+    <button type="button" class="btn btn-sm btn-outline-danger row-del ms-auto"><i class="bi bi-x"></i></button>
+  </div>
+  <div class="text-danger small cert-err"></div>
+</div>
+{% endmacro %}
+
 <div class="mb-4">
   <h4 class="fw-bold mb-0">My Profile</h4>
   <p class="text-muted small">Based on the PhilJobNet applicant registration. Keep it updated for accurate job recommendations.</p>
@@ -373,10 +420,10 @@
       <div id="trn-rows" class="d-flex flex-column gap-2">
         {% for t in ap.trainings %}
         <div class="repeat-row row g-2 border rounded p-2">
-          <div class="col-md-4"><input name="trn_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course / Training" value="{{ t.course }}" /></div>
-          <div class="col-md-4"><input name="trn_institution[]" class="form-control form-control-sm" maxlength="120" placeholder="Training institution" value="{{ t.institution }}" /></div>
+          <div class="col-md-3"><input name="trn_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course / Training" value="{{ t.course }}" /></div>
+          <div class="col-md-3"><input name="trn_institution[]" class="form-control form-control-sm" maxlength="120" placeholder="Training institution" value="{{ t.institution }}" /></div>
           <div class="col-md-2"><input name="trn_hours[]" class="form-control form-control-sm" maxlength="10" placeholder="Hours" value="{{ t.hours }}" /></div>
-          <div class="col-md-2 d-flex gap-1"><input name="trn_certificate[]" class="form-control form-control-sm" maxlength="80" placeholder="Certificate" value="{{ t.certificate }}" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
+          {{ cert_cell(t) }}
         </div>
         {% endfor %}
       </div>
@@ -392,11 +439,7 @@
       </div>
       <div id="elig-rows" class="d-flex flex-column gap-2">
         {% for el in ap.eligibilities %}
-        <div class="repeat-row row g-2 border rounded p-2">
-          <div class="col-md-5"><input name="elig_title[]" class="form-control form-control-sm" maxlength="120" placeholder="Eligibility / License" value="{{ el.title }}" /></div>
-          <div class="col-md-3"><input name="elig_rating[]" class="form-control form-control-sm" maxlength="40" placeholder="Rating / License no." value="{{ el.rating }}" /></div>
-          <div class="col-md-4 d-flex gap-1"><input name="elig_date[]" class="form-control form-control-sm" maxlength="40" placeholder="Date / Valid until" value="{{ el.date }}" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
-        </div>
+        {{ elig_row(el) }}
         {% endfor %}
       </div>
     </div>
@@ -473,16 +516,12 @@
   <div class="col-md-2 d-flex gap-1"><input name="edu_awards[]" class="form-control form-control-sm" maxlength="120" placeholder="Awards" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
 </div></template>
 <template id="trn-tpl"><div class="repeat-row row g-2 border rounded p-2">
-  <div class="col-md-4"><input name="trn_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course / Training" /></div>
-  <div class="col-md-4"><input name="trn_institution[]" class="form-control form-control-sm" maxlength="120" placeholder="Training institution" /></div>
+  <div class="col-md-3"><input name="trn_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course / Training" /></div>
+  <div class="col-md-3"><input name="trn_institution[]" class="form-control form-control-sm" maxlength="120" placeholder="Training institution" /></div>
   <div class="col-md-2"><input name="trn_hours[]" class="form-control form-control-sm" maxlength="10" placeholder="Hours" /></div>
-  <div class="col-md-2 d-flex gap-1"><input name="trn_certificate[]" class="form-control form-control-sm" maxlength="80" placeholder="Certificate" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
+  {{ cert_cell(none) }}
 </div></template>
-<template id="elig-tpl"><div class="repeat-row row g-2 border rounded p-2">
-  <div class="col-md-5"><input name="elig_title[]" class="form-control form-control-sm" maxlength="120" placeholder="Eligibility / License" /></div>
-  <div class="col-md-3"><input name="elig_rating[]" class="form-control form-control-sm" maxlength="40" placeholder="Rating / License no." /></div>
-  <div class="col-md-4 d-flex gap-1"><input name="elig_date[]" class="form-control form-control-sm" maxlength="40" placeholder="Date / Valid until" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
-</div></template>
+<template id="elig-tpl">{{ elig_row(none) }}</template>
 <template id="we-tpl"><div class="repeat-row row g-2 border rounded p-2">
   <div class="col-md-3"><input name="we_company[]" class="form-control form-control-sm" maxlength="120" placeholder="Company" /></div>
   <div class="col-md-3"><input name="we_address[]" class="form-control form-control-sm" maxlength="120" placeholder="Address" /></div>
@@ -502,7 +541,7 @@
       onReady: function (sel, str, fp) {
         var sy = document.createElement('select');
         sy.className = 'fp-year'; sy.setAttribute('aria-label', 'Year');
-        for (var y = new Date().getFullYear(); y >= MIN_YEAR; y--) {
+        for (var y = (opts && opts.maxYear) || new Date().getFullYear(); y >= MIN_YEAR; y--) {
           var o = document.createElement('option'); o.value = o.textContent = y; sy.appendChild(o);
         }
         sy.addEventListener('change', function () { fp.changeYear(parseInt(this.value, 10)); });
@@ -556,6 +595,7 @@
   function addRow(section) {
     var tpl = document.getElementById(section + '-tpl');
     document.getElementById(section + '-rows').appendChild(tpl.content.cloneNode(true));
+    if (section === 'elig') initEligRows();
   }
   document.addEventListener('click', function (e) {
     var del = e.target.closest('.row-del');
@@ -593,6 +633,76 @@
       box.querySelectorAll('input').forEach(function (i) { i.disabled = !p[1]; });
     });
   }
+  // Training certificate upload: PDF/JPG/PNG, max 5 MB; shows a removable file chip
+  (function () {
+    var MAX = 5 * 1024 * 1024, OK = /\.(pdf|jpe?g|png)$/i;
+    function sync(cell) {
+      var has = !!(cell.querySelector('.cert-input').files.length || cell.querySelector('[name="trn_cert_file[]"]').value);
+      cell.querySelector('.cert-pick').classList.toggle('d-none', has);
+      var chip = cell.querySelector('.cert-chip');
+      chip.classList.toggle('d-none', !has); chip.classList.toggle('d-inline-flex', has);
+    }
+    document.querySelectorAll('.cert-cell').forEach(sync);
+    document.addEventListener('click', function (e) {
+      var cell = e.target.closest('.cert-cell');
+      if (!cell) return;
+      if (e.target.closest('.cert-pick')) cell.querySelector('.cert-input').click();
+      if (e.target.closest('.cert-remove')) {
+        cell.querySelector('.cert-input').value = '';
+        cell.querySelector('[name="trn_certificate[]"]').value = '';
+        cell.querySelector('[name="trn_cert_file[]"]').value = '';
+        cell.parentNode.querySelector('.cert-err').textContent = '';
+        var nm = cell.querySelector('.cert-name'); if (nm.tagName === 'A') nm.removeAttribute('href');
+        nm.textContent = '';
+        sync(cell);
+      }
+    });
+    document.addEventListener('change', function (e) {
+      if (!e.target.classList.contains('cert-input')) return;
+      var cell = e.target.closest('.cert-cell'), err = cell.parentNode.querySelector('.cert-err'), file = e.target.files[0];
+      err.textContent = '';
+      if (file && !OK.test(file.name)) { err.textContent = 'Only PDF, JPG or PNG files are allowed.'; e.target.value = ''; }
+      else if (file && file.size > MAX) { err.textContent = 'File is too large (max 5 MB).'; e.target.value = ''; }
+      else if (file) {
+        var nm = cell.querySelector('.cert-name'); if (nm.tagName === 'A') nm.removeAttribute('href');
+        nm.textContent = file.name;
+      }
+      sync(cell);
+    });
+  })();
+  // Eligibility / License rows: type dropdown drives the date label and the month/year picker
+  var ELIG_LABELS = {
+    'Civil Service Eligibility': ['Date of Examination / Issue', 'issue'],
+    'National Certificate (TESDA NC)': ['Date of Examination / Issue', 'issue'],
+    'Professional Regulation Commission (PRC) License': ['Expiration Date (Valid Until)', 'expiry'],
+    "Driver's License": ['Expiration Date (Valid Until)', 'expiry'],
+    'Others': ['Date / Valid Until', 'other']
+  };
+  function eligApply(row) {
+    var type = row.querySelector('.elig-type').value, info = ELIG_LABELS[type] || ['Month / Year', 'other'];
+    var other = row.querySelector('.elig-other');
+    other.style.display = type === 'Others' ? '' : 'none';
+    other.disabled = type !== 'Others';
+    row.querySelector('.elig-date-label').textContent = info[0];
+    var inp = row.querySelector('.elig-date'), fp = inp._flatpickr;
+    if (fp) {
+      fp.altInput.placeholder = inp.dataset.legacy ? 'Previously: ' + inp.dataset.legacy : 'Select month / year';
+      fp.set('maxDate', info[1] === 'issue' ? 'today' : (new Date().getFullYear() + 30) + '-12-31');
+    }
+  }
+  function initEligRows() {
+    document.querySelectorAll('.elig-row').forEach(function (row) {
+      var inp = row.querySelector('.elig-date');
+      if (!inp._flatpickr) {
+        var yr = new Date().getFullYear();
+        initPicker(inp, yr - 60, { dateFormat: 'Y-m', altInput: true, altFormat: 'F Y', altInputClass: 'form-control form-control-sm', maxYear: yr + 30 });
+      }
+      eligApply(row);
+    });
+  }
+  document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('elig-type')) eligApply(e.target.closest('.elig-row'));
+  });
   function toggle(id, show) { var el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; }
 
   function empToggle() {
@@ -621,6 +731,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     empToggle();
     ofwToggle();
+    initEligRows();
     limitOtherSkills();
   });
 </script>

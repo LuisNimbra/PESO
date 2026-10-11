@@ -108,7 +108,7 @@
     <h6 class="text-uppercase text-muted small fw-bold mb-2">Certification / Training</h6>
     <div class="table-responsive mb-3"><table class="table table-sm small mb-0">
       <thead class="table-light"><tr><th>Course</th><th>Institution</th><th>Hours</th><th>Certificate</th></tr></thead>
-      <tbody>{% for t in ap.trainings %}<tr><td>{{ t.course }}</td><td>{{ t.institution }}</td><td>{{ t.hours }}</td><td>{{ t.certificate }}</td></tr>{% endfor %}</tbody>
+      <tbody>{% for t in ap.trainings %}<tr><td>{{ t.course }}</td><td>{{ t.institution }}</td><td>{{ t.hours }}</td><td>{% if t.cert_file %}<a href="{{ url_for('certificate_file', filename=t.cert_file) }}" target="_blank"><i class="bi bi-paperclip"></i> {{ t.certificate or 'View' }}</a>{% else %}{{ t.certificate }}{% endif %}</td></tr>{% endfor %}</tbody>
     </table></div>
     {% endif %}
 
@@ -116,7 +116,7 @@
     <h6 class="text-uppercase text-muted small fw-bold mb-2">Eligibility / License</h6>
     <div class="table-responsive mb-3"><table class="table table-sm small mb-0">
       <thead class="table-light"><tr><th>Title</th><th>Rating / No.</th><th>Date / Valid until</th></tr></thead>
-      <tbody>{% for el in ap.eligibilities %}<tr><td>{{ el.title }}</td><td>{{ el.rating }}</td><td>{{ el.date }}</td></tr>{% endfor %}</tbody>
+      <tbody>{% for el in ap.eligibilities %}<tr><td>{{ el.title }}</td><td>{{ el.rating }}</td><td>{{ el.date|monthyear }}</td></tr>{% endfor %}</tbody>
     </table></div>
     {% endif %}
 
