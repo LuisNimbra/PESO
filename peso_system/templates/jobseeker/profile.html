@@ -207,14 +207,28 @@
           <div class="form-check"><input class="form-check-input" type="checkbox" name="is_caregiver" value="1" id="is_cg" {% if ap.is_caregiver %}checked{% endif %} /><label class="form-check-label small" for="is_cg">Caregiver</label></div>
         </div>
         <div class="col-sm-6">
-          <div class="form-check"><input class="form-check-input" type="checkbox" name="is_ofw" value="1" id="is_ofw" onchange="toggle('ofw-country', this.checked)" {% if ap.is_ofw %}checked{% endif %} /><label class="form-check-label small" for="is_ofw">Are you an OFW?</label></div>
-          <input type="text" name="ofw_country" id="ofw-country" class="form-control form-control-sm mt-1" maxlength="60" value="{{ ap.ofw_country or '' }}" placeholder="Specify country" />
+          {% set ofw_state = 'current' if ap.is_ofw else ('former' if ap.is_former_ofw else 'none') %}
+          <label class="form-label fw-semibold small" for="ofw-status">Overseas Work Experience / Status</label>
+          <select name="ofw_status" id="ofw-status" class="form-select form-select-sm" onchange="ofwToggle()">
+            <option value="none" {% if ofw_state == 'none' %}selected{% endif %}>No OFW Experience</option>
+            <option value="current" {% if ofw_state == 'current' %}selected{% endif %}>Current OFW (Currently working abroad)</option>
+            <option value="former" {% if ofw_state == 'former' %}selected{% endif %}>Former OFW (Returned to the Philippines)</option>
+          </select>
         </div>
-        <div class="col-sm-6">
-          <div class="form-check"><input class="form-check-input" type="checkbox" name="is_former_ofw" value="1" id="is_fofw" onchange="toggle('fofw-fields', this.checked)" {% if ap.is_former_ofw %}checked{% endif %} /><label class="form-check-label small" for="is_fofw">Former OFW?</label></div>
-          <div id="fofw-fields" class="mt-1 d-flex gap-2">
-            <input type="text" name="former_ofw_country" class="form-control form-control-sm" maxlength="60" value="{{ ap.former_ofw_country or '' }}" placeholder="Latest country of deployment" />
-            <input type="text" name="ofw_return_date" id="ofw-return-date" class="form-control form-control-sm" placeholder="Month/year of return" autocomplete="off" value="{{ ap.ofw_return_date or '' }}" />
+        <div class="col-sm-6" id="ofw-current-box">
+          <label class="form-label fw-semibold small">Current Country of Deployment</label>
+          <input type="text" name="ofw_country" class="form-control form-control-sm" maxlength="60" value="{{ ap.ofw_country or '' }}" placeholder="Country" />
+        </div>
+        <div class="col-sm-6" id="ofw-former-box">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label fw-semibold small">Latest Country of Deployment</label>
+              <input type="text" name="former_ofw_country" class="form-control form-control-sm" maxlength="60" value="{{ ap.former_ofw_country or '' }}" placeholder="Country" />
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small">Month/Year of Return to the Philippines</label>
+              <input type="text" name="ofw_return_date" id="ofw-return-date" class="form-control form-control-sm" placeholder="Month/year" autocomplete="off" value="{{ ap.ofw_return_date or '' }}" />
+            </div>
           </div>
         </div>
       </div>
@@ -570,6 +584,15 @@
     });
   }
   workPrefToggle();
+  // OFW status: show only the fields for the chosen status; hidden fields are disabled so they save blank
+  function ofwToggle() {
+    var v = document.getElementById('ofw-status').value;
+    [['ofw-current-box', v === 'current'], ['ofw-former-box', v === 'former']].forEach(function (p) {
+      var box = document.getElementById(p[0]);
+      box.style.display = p[1] ? '' : 'none';
+      box.querySelectorAll('input').forEach(function (i) { i.disabled = !p[1]; });
+    });
+  }
   function toggle(id, show) { var el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; }
 
   function empToggle() {
@@ -597,8 +620,7 @@
   });
   document.addEventListener('DOMContentLoaded', function () {
     empToggle();
-    toggle('ofw-country', document.getElementById('is_ofw').checked);
-    toggle('fofw-fields', document.getElementById('is_fofw').checked);
+    ofwToggle();
     limitOtherSkills();
   });
 </script>
