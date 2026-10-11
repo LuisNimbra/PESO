@@ -63,6 +63,7 @@ ELIG_TYPES = [
 ]
 
 EDUC_LEVELS = [
+    'No Formal Education',
     'Elementary Level', 'Elementary Graduate',
     'High School Level', 'High School Graduate',
     'Senior High School Level', 'Senior High School Graduate',
@@ -646,6 +647,20 @@ def req_summary(v):
         if skills:
             out.append('Skills: ' + ', '.join(skills))
     return out
+
+def _work_months(w):
+    """Months worked for one Work Experience row, from its From/To dates (inclusive).
+    The current-job flag means up to this month. Falls back to a legacy 'months' value."""
+    today = datetime.now()
+    cur = bool(w.get('current'))
+    if cur:
+        w['to_m'] = w['to_y'] = ''
+    try:
+        fy, fm = int(w.get('from_y')), int(w.get('from_m'))
+        ty, tm = (today.year, today.month) if cur else (int(w.get('to_y')), int(w.get('to_m')))
+    except (TypeError, ValueError):
+        return w['months'] if str(w.get('months', '')).isdigit() else ''
+    return str(max(0, (ty * 12 + tm) - (fy * 12 + fm) + 1))
 
 def _total_exp_months(ap):
     """Total months of work experience from an applicant's Work Experience JSON."""
@@ -1267,7 +1282,9 @@ def jobseeker_profile():
             title = r['other'] if r['type'] == 'Others' else r['type']
             if title or r['rating'] or r['date']:
                 eligibils.append({'title': title, 'rating': r['rating'], 'date': r['date']})
-        work_hist   = rows('we',   ['company', 'address', 'position', 'months', 'status'])
+        work_hist   = rows('we',   ['company', 'address', 'position', 'from_m', 'from_y', 'to_m', 'to_y', 'current', 'months', 'status'])
+        for w in work_hist:
+            w['months'] = _work_months(w)
 
         languages = []
         for lang in LANGUAGE_CHOICES:

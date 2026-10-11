@@ -39,6 +39,25 @@
 {% endblock %}
 
 {% block content %}
+{% macro we_row(w) %}
+<div class="repeat-row we-row row g-2 border rounded p-2">
+  <div class="col-md-3"><input name="we_company[]" class="form-control form-control-sm" maxlength="120" placeholder="Company" value="{{ w.company if w else '' }}" /></div>
+  <div class="col-md-3"><input name="we_address[]" class="form-control form-control-sm" maxlength="120" placeholder="Address" value="{{ w.address if w else '' }}" /></div>
+  <div class="col-md-3"><input name="we_position[]" class="form-control form-control-sm" maxlength="100" placeholder="Position" value="{{ w.position if w else '' }}" /></div>
+  <div class="col-md-3 d-flex gap-1"><select name="we_status[]" class="form-select form-select-sm"><option value="">Status</option>{% for st in work_status_choices %}<option value="{{ st }}" {% if w and w.status == st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
+  <div class="col-md-4"><div class="small text-muted mb-1">From</div><div class="d-flex gap-1">
+    <select name="we_from_m[]" class="form-select form-select-sm we-month" data-selected="{{ w.from_m if w else '' }}"><option value="">Month</option></select>
+    <select name="we_from_y[]" class="form-select form-select-sm we-year" data-selected="{{ w.from_y if w else '' }}"><option value="">Year</option></select></div></div>
+  <div class="col-md-4"><div class="small text-muted mb-1">To</div><div class="d-flex gap-1 we-to">
+    <select name="we_to_m[]" class="form-select form-select-sm we-month" data-selected="{{ w.to_m if w else '' }}"><option value="">Month</option></select>
+    <select name="we_to_y[]" class="form-select form-select-sm we-year" data-selected="{{ w.to_y if w else '' }}"><option value="">Year</option></select></div></div>
+  <div class="col-md-4 d-flex align-items-end"><div class="form-check mb-1">
+    <input type="hidden" name="we_current[]" class="we-current-val" value="{{ '1' if w and w.current else '' }}" />
+    <input type="checkbox" class="form-check-input we-current" {% if w and w.current %}checked{% endif %} />
+    <label class="form-check-label small">I currently work here</label></div>
+    <input type="hidden" name="we_months[]" value="{{ w.months if w and not w.from_y else '' }}" /></div>
+</div>
+{% endmacro %}
 {% macro elig_row(el) %}
 {% set t = el.title if el else '' %}
 {% set known = t in elig_types %}
@@ -246,7 +265,9 @@
             <input class="form-check-input" type="checkbox" name="is_4ps" id="is_4ps" value="1" {% if ap.is_4ps %}checked{% endif %} />
             <label class="form-check-label small" for="is_4ps">4Ps beneficiary</label>
           </div>
-          <input type="text" name="household_id" class="form-control form-control-sm mt-1" maxlength="40" value="{{ ap.household_id or '' }}" placeholder="Household ID No." />
+          <div id="hh-wrap" class="hh-wrap {% if ap.is_4ps %}open{% endif %}"><div>
+            <input type="text" name="household_id" id="household_id" class="form-control form-control-sm mt-1" maxlength="40" value="{{ ap.household_id or '' }}" placeholder="Household ID No." {% if not ap.is_4ps %}tabindex="-1"{% endif %} />
+          </div></div>
         </div>
         <div class="col-sm-6 d-flex flex-column gap-2 justify-content-center">
           <div class="form-check"><input class="form-check-input" type="checkbox" name="is_wodp" value="1" id="is_wodp" {% if ap.is_wodp %}checked{% endif %} /><label class="form-check-label small" for="is_wodp">WODP beneficiary</label></div>
@@ -394,12 +415,11 @@
     <div class="card-body p-3">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <p class="fw-semibold sec-head mb-0">6 · Educational Background</p>
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRow('edu')"><i class="bi bi-plus-lg me-1"></i>Add education</button>
       </div>
       <div id="edu-rows" class="d-flex flex-column gap-2">
         {% for e in ap.education %}
         <div class="repeat-row edu-row row g-2 border rounded p-2">
-          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl or (e.level == 'ALS' and lvl.startswith('ALS')) %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
+          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Education Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl or (e.level == 'ALS' and lvl.startswith('ALS')) %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
           <div class="col-md-4 edu-school-col"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" value="{{ e.school }}" /></div>
           <div class="col-md-2 edu-course-col d-none"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" value="{{ e.course }}" /></div>
           <div class="col-md-2"><select name="edu_year[]" class="form-select form-select-sm edu-year" data-selected="{{ e.year or '' }}"><option value="">Year</option></select></div>
@@ -453,15 +473,7 @@
         <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRow('we')"><i class="bi bi-plus-lg me-1"></i>Add experience</button>
       </div>
       <div id="we-rows" class="d-flex flex-column gap-2">
-        {% for w in ap.work_history %}
-        <div class="repeat-row row g-2 border rounded p-2">
-          <div class="col-md-3"><input name="we_company[]" class="form-control form-control-sm" maxlength="120" placeholder="Company" value="{{ w.company }}" /></div>
-          <div class="col-md-3"><input name="we_address[]" class="form-control form-control-sm" maxlength="120" placeholder="Address" value="{{ w.address }}" /></div>
-          <div class="col-md-2"><input name="we_position[]" class="form-control form-control-sm" maxlength="100" placeholder="Position" value="{{ w.position }}" /></div>
-          <div class="col-md-1"><input name="we_months[]" class="form-control form-control-sm" maxlength="4" inputmode="numeric" placeholder="Mos." value="{{ w.months }}" /></div>
-          <div class="col-md-3 d-flex gap-1"><select name="we_status[]" class="form-select form-select-sm"><option value="">Status</option>{% for st in work_status_choices %}<option value="{{ st }}" {% if w.status == st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
-        </div>
-        {% endfor %}
+        {% for w in ap.work_history %}{{ we_row(w) }}{% endfor %}
       </div>
     </div>
   </div>
@@ -508,8 +520,10 @@
 </form>
 
 <!-- Row templates for repeatable sections -->
+<style>.hh-wrap{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .25s ease,opacity .25s ease}.hh-wrap>div{overflow:hidden}.hh-wrap.open{grid-template-rows:1fr;opacity:1}</style>
+<style>#edu-rows .edu-row:only-child .row-del,#we-rows .we-row:only-child .row-del{display:none}.we-locked{pointer-events:none;background-color:var(--bs-secondary-bg,#e9ecef)}</style>
 <template id="edu-tpl"><div class="repeat-row edu-row row g-2 border rounded p-2">
-  <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}">{{ lvl }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Education Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}">{{ lvl }}</option>{% endfor %}</select></div>
   <div class="col-md-4 edu-school-col"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" /></div>
   <div class="col-md-2 edu-course-col d-none"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" /></div>
   <div class="col-md-2"><select name="edu_year[]" class="form-select form-select-sm edu-year"><option value="">Year</option></select></div>
@@ -522,13 +536,7 @@
   {{ cert_cell(none) }}
 </div></template>
 <template id="elig-tpl">{{ elig_row(none) }}</template>
-<template id="we-tpl"><div class="repeat-row row g-2 border rounded p-2">
-  <div class="col-md-3"><input name="we_company[]" class="form-control form-control-sm" maxlength="120" placeholder="Company" /></div>
-  <div class="col-md-3"><input name="we_address[]" class="form-control form-control-sm" maxlength="120" placeholder="Address" /></div>
-  <div class="col-md-2"><input name="we_position[]" class="form-control form-control-sm" maxlength="100" placeholder="Position" /></div>
-  <div class="col-md-1"><input name="we_months[]" class="form-control form-control-sm" maxlength="4" inputmode="numeric" placeholder="Mos." /></div>
-  <div class="col-md-3 d-flex gap-1"><select name="we_status[]" class="form-select form-select-sm"><option value="">Status</option>{% for st in work_status_choices %}<option value="{{ st }}">{{ st }}</option>{% endfor %}</select><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
-</div></template>
+<template id="we-tpl">{{ we_row(none) }}</template>
 {% endblock %}
 
 {% block scripts %}
@@ -617,10 +625,56 @@
     if (e.target.classList && e.target.classList.contains('edu-level')) syncEduCourse(e.target.closest('.edu-row'));
   });
   document.querySelectorAll('#edu-rows .edu-row').forEach(initEduRow);
+  // always start with one row; its delete button is hidden by the :only-child CSS rule
+  if (!document.querySelector('#edu-rows .edu-row')) addRow('edu');
+  // 4Ps: Household ID only visible (and kept) while the checkbox is ticked
+  (function () {
+    var cb = document.getElementById('is_4ps'), wrap = document.getElementById('hh-wrap'), hh = document.getElementById('household_id');
+    function sync() {
+      wrap.classList.toggle('open', cb.checked);
+      hh.tabIndex = cb.checked ? 0 : -1;
+      if (!cb.checked) hh.value = '';
+    }
+    cb.addEventListener('change', sync);
+  })();
+  // Work experience: Month/Year selects for From/To; "I currently work here" locks To as Present.
+  // The checkbox state is mirrored into a hidden we_current[] so the parallel arrays stay aligned.
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function fillWeSelect(sel, isMonth, withPresent) {
+    var chosen = sel.dataset.selected || '';
+    if (isMonth) MONTHS.forEach(function (m, i) { sel.add(new Option(m, i + 1)); });
+    else for (var y = new Date().getFullYear(); y >= 1960; y--) sel.add(new Option(y, y));
+    if (withPresent) sel.add(new Option('Present', 'Present'));
+    if (chosen && !sel.querySelector('option[value="' + chosen + '"]')) sel.add(new Option(chosen, chosen));
+    sel.value = chosen;
+  }
+  function syncWeCurrent(row) {
+    var on = row.querySelector('.we-current').checked;
+    row.querySelector('.we-current-val').value = on ? '1' : '';
+    row.querySelectorAll('.we-to select').forEach(function (s) {
+      var wasPresent = s.value === 'Present';
+      s.classList.toggle('we-locked', on);
+      s.tabIndex = on ? -1 : 0;
+      if (on) s.value = 'Present'; else if (wasPresent) s.value = '';
+    });
+  }
+  function initWeRow(row) {
+    if (row.querySelector('.we-month').options.length < 2) {
+      row.querySelectorAll('.we-month').forEach(function (s) { fillWeSelect(s, true, !!s.closest('.we-to')); });
+      row.querySelectorAll('.we-year').forEach(function (s) { fillWeSelect(s, false, !!s.closest('.we-to')); });
+    }
+    syncWeCurrent(row);
+  }
+  document.addEventListener('change', function (e) {
+    if (e.target.classList && e.target.classList.contains('we-current')) syncWeCurrent(e.target.closest('.we-row'));
+  });
+  document.querySelectorAll('#we-rows .we-row').forEach(initWeRow);
+  if (!document.querySelector('#we-rows .we-row')) addRow('we');
   function addRow(section) {
     var tpl = document.getElementById(section + '-tpl');
     document.getElementById(section + '-rows').appendChild(tpl.content.cloneNode(true));
     if (section === 'elig') initEligRows();
+    if (section === 'we') initWeRow(document.getElementById('we-rows').lastElementChild);
     if (section === 'edu') initEduRow(document.getElementById('edu-rows').lastElementChild);
   }
   document.addEventListener('click', function (e) {
