@@ -36,6 +36,15 @@
 @media (max-width:575.98px) { .flatpickr-day { height:42px; line-height:42px; } .fp-footer button { padding:10px 6px; } }
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+<style>
+.crop-modal{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
+.crop-modal.open{display:flex}
+.crop-dialog{background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#212529);border-radius:12px;width:100%;max-width:480px;padding:16px}
+.crop-stage{height:min(60vh,360px);background:#222;border-radius:8px;overflow:hidden}
+.crop-stage img{display:block;max-width:100%}
+.crop-circle .cropper-view-box,.crop-circle .cropper-face{border-radius:50%}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -118,6 +127,23 @@
 {% endif %}
 
 <form method="POST" action="{{ url_for('jobseeker_profile') }}" enctype="multipart/form-data">
+
+  <!-- Photo crop modal -->
+  <div class="crop-modal" id="crop-modal" role="dialog" aria-modal="true" aria-label="Crop profile photo">
+    <div class="crop-dialog">
+      <p class="fw-semibold mb-2">Crop your photo</p>
+      <div class="crop-stage crop-circle"><img id="crop-img" alt="Photo to crop" /></div>
+      <div class="d-flex align-items-center gap-2 mt-3">
+        <i class="bi bi-zoom-out"></i>
+        <input type="range" class="form-range" id="crop-zoom" min="1" max="3" step="0.01" value="1" aria-label="Zoom" />
+        <i class="bi bi-zoom-in"></i>
+      </div>
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="crop-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="crop-save">Crop &amp; Save</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Profile photo -->
   <div class="card shadow-sm border-0 mb-3" style="border-radius:12px;">
@@ -541,6 +567,7 @@
 
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
   function initPicker(sel, MIN_YEAR, opts) {
     flatpickr(sel, Object.assign({
@@ -801,12 +828,52 @@
     if (f.size > PHOTO_MAX) {
       err.textContent = 'Photo is too large (max 2 MB).'; this.value = ''; return;
     }
-    var box = document.getElementById('avatar');
-    box.innerHTML = '';
-    var img = document.createElement('img');
-    img.alt = 'Profile photo preview';
-    img.src = URL.createObjectURL(f);
-    box.appendChild(img);
+    openCropper(f);
+  });
+  // Crop modal: Cropper.js, fixed 1:1, circular guide; result replaces the file in #photo-input
+  var cropper = null, cropBase = 1, cropName = 'photo.jpg';
+  var cropModal = document.getElementById('crop-modal'), cropImg = document.getElementById('crop-img'),
+      cropZoom = document.getElementById('crop-zoom'), photoInput = document.getElementById('photo-input');
+  function closeCropper(clearInput) {
+    if (cropper) { cropper.destroy(); cropper = null; }
+    if (cropImg.src) URL.revokeObjectURL(cropImg.src);
+    cropImg.removeAttribute('src');
+    cropModal.classList.remove('open');
+    if (clearInput) photoInput.value = '';
+  }
+  function openCropper(file) {
+    cropName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+    cropImg.src = URL.createObjectURL(file);
+    cropModal.classList.add('open');
+    cropZoom.value = 1;
+    cropper = new Cropper(cropImg, {
+      aspectRatio: 1, viewMode: 1, dragMode: 'move', autoCropArea: 1,
+      cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: false,
+      ready: function () { cropBase = cropper.getCanvasData().width / cropper.getImageData().naturalWidth; },
+      zoom: function (e) {
+        var r = e.detail.ratio / cropBase;
+        if (r < 1 || r > 3) { e.preventDefault(); return; }
+        cropZoom.value = r;
+      }
+    });
+  }
+  cropZoom.addEventListener('input', function () { if (cropper) cropper.zoomTo(cropBase * parseFloat(this.value)); });
+  document.getElementById('crop-cancel').addEventListener('click', function () { closeCropper(true); });
+  document.getElementById('crop-save').addEventListener('click', function () {
+    if (!cropper) return;
+    var canvas = cropper.getCroppedCanvas({ width: 512, height: 512, imageSmoothingQuality: 'high', fillColor: '#fff' });
+    canvas.toBlob(function (blob) {
+      var out = new File([blob], cropName, { type: 'image/jpeg' }), dt = new DataTransfer();
+      dt.items.add(out);
+      photoInput.files = dt.files;
+      var box = document.getElementById('avatar');
+      box.innerHTML = '';
+      var img = document.createElement('img');
+      img.alt = 'Profile photo preview';
+      img.src = canvas.toDataURL('image/jpeg', 0.9);
+      box.appendChild(img);
+      closeCropper(false);
+    }, 'image/jpeg', 0.9);
   });
   document.addEventListener('DOMContentLoaded', function () {
     empToggle();
