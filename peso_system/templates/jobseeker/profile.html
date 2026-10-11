@@ -62,7 +62,7 @@
     <select name="we_to_y[]" class="form-select form-select-sm we-year" data-selected="{{ w.to_y if w else '' }}"><option value="">Year</option></select></div></div>
   <div class="col-md-4 d-flex align-items-end"><div class="form-check mb-1">
     <input type="hidden" name="we_current[]" class="we-current-val" value="{{ '1' if w and w.current else '' }}" />
-    <input type="checkbox" class="form-check-input we-current" {% if w and w.current %}checked{% endif %} />
+    <input type="checkbox" data-draft="we_current" class="form-check-input we-current" {% if w and w.current %}checked{% endif %} />
     <label class="form-check-label small">I currently work here</label></div>
     <input type="hidden" name="we_months[]" value="{{ w.months if w and not w.from_y else '' }}" /></div>
 </div>
@@ -899,5 +899,101 @@
     initEligRows();
     limitOtherSkills();
   });
+
+  // ── Draft autosave: keeps unsaved edits across refresh / failed saves (sessionStorage, cleared on a successful save) ──
+  (function () {
+    var form = document.getElementById('edu-rows').closest('form');
+    var KEY = 'peso_profile_draft_{{ session.get("user_id") }}';
+    var SKIP = { photo: 1, district: 1 };               // photo is saved by the crop modal; district is derived from barangay
+    var SKIP_TYPES = ['file', 'hidden', 'password', 'submit', 'button'];
+    var SECTIONS = { edu: '#edu-rows .edu-row', trn: '#trn-rows .repeat-row', elig: '#elig-rows .elig-row', we: '#we-rows .we-row' };
+    var restoring = false, timer = null;
+
+    function store(fn) { try { return fn(window.sessionStorage); } catch (e) { return null; } }
+    function keyOf(el) {
+      var k = el.name || el.getAttribute('data-draft') || '';
+      return k.replace(/^(xlang_\w+?)_\d+$/, '$1');     // custom language rows are numbered; match them by position instead
+    }
+    function fields() {
+      var seen = {}, out = [];
+      form.querySelectorAll('input, select, textarea').forEach(function (el) {
+        if (el.closest('#crop-modal') || SKIP_TYPES.indexOf(el.type) !== -1) return;
+        var k = keyOf(el);
+        if (!k || SKIP[k]) return;
+        seen[k] = seen[k] === undefined ? 0 : seen[k] + 1;
+        out.push({ el: el, id: k + '#' + seen[k] });
+      });
+      return out;
+    }
+    function counts() {
+      var c = { lang: document.querySelectorAll('#lang-rows .lang-custom').length };
+      Object.keys(SECTIONS).forEach(function (k) { c[k] = document.querySelectorAll(SECTIONS[k]).length; });
+      return c;
+    }
+    function save() {
+      if (restoring) return;
+      var data = {};
+      fields().forEach(function (f) {
+        data[f.id] = (f.el.type === 'checkbox' || f.el.type === 'radio') ? f.el.checked : f.el.value;
+      });
+      store(function (s) { s.setItem(KEY, JSON.stringify({ counts: counts(), data: data })); });
+    }
+    function schedule() { clearTimeout(timer); timer = setTimeout(save, 300); }
+
+    function matchRows(sel, n, add) {
+      var rows = document.querySelectorAll(sel);
+      for (var i = rows.length; i < n; i++) add();
+      rows = document.querySelectorAll(sel);
+      for (var j = rows.length - 1; j >= n; j--) rows[j].remove();
+    }
+    function restore(draft) {
+      restoring = true;
+      Object.keys(SECTIONS).forEach(function (k) {
+        if (draft.counts[k] !== undefined) matchRows(SECTIONS[k], Math.max(1, draft.counts[k]), function () { addRow(k); });
+      });
+      matchRows('#lang-rows .lang-custom', draft.counts.lang || 0, addLang);
+      fields().forEach(function (f) {
+        if (!(f.id in draft.data)) return;
+        var v = draft.data[f.id], el = f.el;
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          if (el.checked === v) return;
+          el.checked = v;
+        } else {
+          if (el.tagName === 'SELECT' && v && !el.querySelector('option[value="' + String(v).replace(/"/g, '\\"') + '"]')) return;
+          if (el.value === v) return;
+          el.value = v;
+        }
+        el.dispatchEvent(new Event('change', { bubbles: true }));   // runs the conditional-field logic
+      });
+      ['empToggle', 'ofwToggle', 'workPrefToggle', 'limitOtherSkills', 'autoFillDistrict', 'initEligRows'].forEach(function (fn) {
+        try { window[fn](); } catch (e) {}
+      });
+      restoring = false;
+    }
+    function showBanner() {
+      var n = document.createElement('div');
+      n.className = 'alert alert-info d-flex justify-content-between align-items-center py-2 small';
+      n.innerHTML = '<span>Your unsaved changes were restored. Click <strong>Save Profile</strong> to keep them.</span>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary ms-2">Discard</button>';
+      n.querySelector('button').addEventListener('click', function () {
+        store(function (s) { s.removeItem(KEY); }); location.reload();
+      });
+      form.parentNode.insertBefore(n, form);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var saved = document.querySelector('.alert-success');
+      if (saved && /Profile saved/i.test(saved.textContent)) {
+        store(function (s) { s.removeItem(KEY); });      // successful save: start fresh
+      } else {
+        var raw = store(function (s) { return s.getItem(KEY); }), draft = null;
+        try { draft = raw && JSON.parse(raw); } catch (e) {}
+        if (draft && draft.data && draft.counts) { restore(draft); showBanner(); }
+      }
+      form.addEventListener('input', schedule);
+      form.addEventListener('change', schedule);
+      form.addEventListener('click', schedule);          // add / remove rows, chips, custom languages
+    });
+  })();
 </script>
 {% endblock %}
