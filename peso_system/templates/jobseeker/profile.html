@@ -398,12 +398,12 @@
       </div>
       <div id="edu-rows" class="d-flex flex-column gap-2">
         {% for e in ap.education %}
-        <div class="repeat-row row g-2 border rounded p-2">
-          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl or (e.level == 'ALS' and lvl.startswith('ALS')) %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
-          <div class="col-md-3"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" value="{{ e.school }}" /></div>
-          <div class="col-md-3"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" value="{{ e.course }}" /></div>
-          <div class="col-md-1"><input name="edu_year[]" class="form-control form-control-sm" maxlength="4" inputmode="numeric" placeholder="Year" value="{{ e.year }}" /></div>
-          <div class="col-md-2 d-flex gap-1"><input name="edu_awards[]" class="form-control form-control-sm" maxlength="120" placeholder="Awards" value="{{ e.awards }}" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
+        <div class="repeat-row edu-row row g-2 border rounded p-2">
+          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl or (e.level == 'ALS' and lvl.startswith('ALS')) %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
+          <div class="col-md-4 edu-school-col"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" value="{{ e.school }}" /></div>
+          <div class="col-md-2 edu-course-col d-none"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" value="{{ e.course }}" /></div>
+          <div class="col-md-2"><select name="edu_year[]" class="form-select form-select-sm edu-year" data-selected="{{ e.year or '' }}"><option value="">Year</option></select></div>
+          <div class="col-md-3 d-flex gap-1"><input name="edu_awards[]" class="form-control form-control-sm" maxlength="120" placeholder="Awards" value="{{ e.awards }}" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
         </div>
         {% endfor %}
       </div>
@@ -508,12 +508,12 @@
 </form>
 
 <!-- Row templates for repeatable sections -->
-<template id="edu-tpl"><div class="repeat-row row g-2 border rounded p-2">
-  <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}">{{ lvl }}</option>{% endfor %}</select></div>
-  <div class="col-md-3"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" /></div>
-  <div class="col-md-3"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" /></div>
-  <div class="col-md-1"><input name="edu_year[]" class="form-control form-control-sm" maxlength="4" inputmode="numeric" placeholder="Year" /></div>
-  <div class="col-md-2 d-flex gap-1"><input name="edu_awards[]" class="form-control form-control-sm" maxlength="120" placeholder="Awards" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
+<template id="edu-tpl"><div class="repeat-row edu-row row g-2 border rounded p-2">
+  <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}">{{ lvl }}</option>{% endfor %}</select></div>
+  <div class="col-md-4 edu-school-col"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" /></div>
+  <div class="col-md-2 edu-course-col d-none"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" /></div>
+  <div class="col-md-2"><select name="edu_year[]" class="form-select form-select-sm edu-year"><option value="">Year</option></select></div>
+  <div class="col-md-3 d-flex gap-1"><input name="edu_awards[]" class="form-control form-control-sm" maxlength="120" placeholder="Awards" /><button type="button" class="btn btn-sm btn-outline-danger row-del"><i class="bi bi-x"></i></button></div>
 </div></template>
 <template id="trn-tpl"><div class="repeat-row row g-2 border rounded p-2">
   <div class="col-md-3"><input name="trn_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course / Training" /></div>
@@ -592,10 +592,36 @@
   document.addEventListener('change', function (e) {
     if (e.target && e.target.name === 'other_skills') limitOtherSkills();
   });
+  // Education rows: Course only for Vocational / College / Post-Graduate; Year is a dropdown.
+  // edu_course[] stays in the DOM (just hidden) so the parallel edu_* arrays keep their alignment.
+  var COURSE_LEVELS = /^(Vocational|College|Post-Graduate)/;
+  function initEduRow(row) {
+    var yr = row.querySelector('.edu-year');
+    if (yr && yr.options.length < 2) {
+      var top = new Date().getFullYear(), sel = yr.dataset.selected || '';
+      for (var y = top; y >= 1960; y--) yr.add(new Option(y, y));
+      if (sel && !yr.querySelector('option[value="' + sel + '"]')) yr.add(new Option(sel, sel));
+      yr.value = sel;
+    }
+    syncEduCourse(row);
+  }
+  function syncEduCourse(row) {
+    var show = COURSE_LEVELS.test(row.querySelector('.edu-level').value);
+    var col = row.querySelector('.edu-course-col'), school = row.querySelector('.edu-school-col');
+    col.classList.toggle('d-none', !show);
+    school.classList.toggle('col-md-4', !show);
+    school.classList.toggle('col-md-2', show);
+    if (!show) col.querySelector('input').value = '';
+  }
+  document.addEventListener('change', function (e) {
+    if (e.target.classList && e.target.classList.contains('edu-level')) syncEduCourse(e.target.closest('.edu-row'));
+  });
+  document.querySelectorAll('#edu-rows .edu-row').forEach(initEduRow);
   function addRow(section) {
     var tpl = document.getElementById(section + '-tpl');
     document.getElementById(section + '-rows').appendChild(tpl.content.cloneNode(true));
     if (section === 'elig') initEligRows();
+    if (section === 'edu') initEduRow(document.getElementById('edu-rows').lastElementChild);
   }
   document.addEventListener('click', function (e) {
     var del = e.target.closest('.row-del');
