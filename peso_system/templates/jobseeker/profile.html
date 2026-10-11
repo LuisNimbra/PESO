@@ -338,7 +338,7 @@
       <div id="edu-rows" class="d-flex flex-column gap-2">
         {% for e in ap.education %}
         <div class="repeat-row row g-2 border rounded p-2">
-          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
+          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm"><option value="">Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl or (e.level == 'ALS' and lvl.startswith('ALS')) %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
           <div class="col-md-3"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" value="{{ e.school }}" /></div>
           <div class="col-md-3"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" value="{{ e.course }}" /></div>
           <div class="col-md-1"><input name="edu_year[]" class="form-control form-control-sm" maxlength="4" inputmode="numeric" placeholder="Year" value="{{ e.year }}" /></div>

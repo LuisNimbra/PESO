@@ -56,8 +56,9 @@ EDUC_LEVELS = [
     'Elementary Level', 'Elementary Graduate',
     'High School Level', 'High School Graduate',
     'Senior High School Level', 'Senior High School Graduate',
-    'College Level', 'College Graduate',
-    'Vocational', 'ALS',
+    'Vocational', 'ALS (Alternative Learning System)',
+    'College Level', 'College Undergraduate', 'College Graduate',
+    "Post-Graduate (Master's / Doctorate Degree)",
 ]
 
 APPLICANTS_PER_PAGE = 24
@@ -543,7 +544,8 @@ EDUC_RANK = {
     'Elementary Level': 1, 'Elementary Graduate': 2,
     'High School Level': 3, 'High School Graduate': 4,
     'Senior High School Level': 5, 'Senior High School Graduate': 6,
-    'College Level': 7, 'College Graduate': 8,
+    'College Level': 7, 'College Undergraduate': 8, 'College Graduate': 9,
+    "Post-Graduate (Master's / Doctorate Degree)": 10,
 }
 REQ_EDUC_CHOICES = list(EDUC_RANK.keys())
 
