@@ -21,8 +21,7 @@
       <div class="row g-3">
         <div class="col-sm-6">
           <label class="form-label fw-semibold">TIN <span class="text-danger">*</span></label>
-          <input type="text" name="tin" class="form-control" value="{{ emp.get('tin','') }}" required placeholder="000-000-000-000"
-                 maxlength="20" inputmode="numeric" pattern="[0-9\-]{9,20}" title="TIN, e.g. 000-000-000-000" />
+          <input type="text" name="tin" data-mask="tin" class="form-control" value="{{ emp.get('tin','') }}" required />
         </div>
         <div class="col-sm-6">
           <label class="form-label fw-semibold">Business Name <span class="text-danger">*</span></label>
@@ -121,8 +120,7 @@
         </div>
         <div class="col-sm-4">
           <label class="form-label fw-semibold">Mobile No. <span class="text-danger">*</span></label>
-          <input type="text" name="mobile" class="form-control" value="{{ emp.get('mobile','') }}" required placeholder="09XXXXXXXXX"
-                 maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number (09XXXXXXXXX)" />
+          <input type="text" name="mobile" data-mask="mobile" class="form-control" value="{{ emp.get('mobile','') }}" required />
         </div>
         <div class="col-sm-4">
           <label class="form-label fw-semibold">Fax No.</label>

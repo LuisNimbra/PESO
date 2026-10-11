@@ -63,6 +63,8 @@ EDUC_LEVELS = [
 APPLICANTS_PER_PAGE = 24
 LIST_PER_PAGE = 20
 
+MOBILE_RE = re.compile(r'^09\d{9}$')
+TIN_RE    = re.compile(r'^\d{3}-\d{3}-\d{3}(-\d{3})?$')
 EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 # ── EMPLOYER PROFILE CHOICES (PhilJobNet-aligned) ─────────────────────────────
@@ -1156,6 +1158,12 @@ def jobseeker_profile():
         f    = request.form
         brgy = f.get('barangay', '').strip()
         bd   = f.get('birthdate', '').strip()
+        if not MOBILE_RE.match(f.get('contact_number', '').strip()):
+            flash('Cellphone no. must be 11 digits starting with 09 (e.g. 09171234567).', 'danger')
+            return redirect(url_for('jobseeker_profile'))
+        if f.get('tin', '').strip() and not TIN_RE.match(f.get('tin', '').strip()):
+            flash('TIN must be in the format 000-000-000-000.', 'danger')
+            return redirect(url_for('jobseeker_profile'))
         # Age is derived from date of birth; fall back to a typed age if no DOB
         age = None
         if bd:
@@ -1591,6 +1599,10 @@ def employer_profile():
             err = 'Please fill in: ' + ', '.join(missing) + '.'
         elif sector not in EMPLOYER_TYPES or emp_type not in EMPLOYER_TYPES.get(sector, []):
             err = 'Please select a valid employer type for the chosen sector.'
+        elif not TIN_RE.match(required['TIN']):
+            err = 'TIN must be in the format 000-000-000-000.'
+        elif not MOBILE_RE.match(required['Mobile no.']):
+            err = 'Mobile no. must be 11 digits starting with 09 (e.g. 09171234567).'
         elif not EMAIL_RE.match(mail):
             err = 'Please enter a valid contact email address.'
         else:
