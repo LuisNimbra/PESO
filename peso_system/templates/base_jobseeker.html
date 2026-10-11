@@ -117,9 +117,11 @@
         <button type="button" class="theme-toggle-btn" aria-label="Toggle dark mode" title="Toggle dark mode">
           <i class="bi bi-moon-stars-fill"></i>
         </button>
+        {% set _name = session.get('full_name', 'Jobseeker') %}
         <div class="topbar-user">
-          <i class="bi bi-person-circle me-1"></i>
-          {{ session.get('full_name', 'Jobseeker') }}
+          {% if user_photo %}<img class="topbar-avatar" src="{{ url_for('profile_photo', filename=user_photo) }}" alt="" />
+          {% else %}<span class="topbar-avatar topbar-avatar-initials" aria-hidden="true">{{ (_name.split()|map('first')|list)[:2]|join|upper or 'J' }}</span>{% endif %}
+          <span>{{ _name }}</span>
         </div>
       </div>
     </div>

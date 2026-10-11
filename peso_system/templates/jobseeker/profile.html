@@ -163,7 +163,7 @@
         <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('photo-input').click()">
           <i class="bi bi-camera me-1"></i>Upload Photo
         </button>
-        <div class="text-muted small mt-2" id="photo-hint">JPEG or PNG, max 2 MB. Click <strong>Save Profile</strong> to keep your new photo.</div>
+        <div class="text-muted small mt-2" id="photo-hint">JPEG or PNG, max 2 MB. Your photo is saved as soon as you click <strong>Crop &amp; Save</strong>.</div>
         <div class="text-danger small mt-1" id="photo-error"></div>
       </div>
     </div>
@@ -859,20 +859,37 @@
   }
   cropZoom.addEventListener('input', function () { if (cropper) cropper.zoomTo(cropBase * parseFloat(this.value)); });
   document.getElementById('crop-cancel').addEventListener('click', function () { closeCropper(true); });
-  document.getElementById('crop-save').addEventListener('click', function () {
+  var saveBtn = document.getElementById('crop-save');
+  saveBtn.addEventListener('click', function () {
     if (!cropper) return;
     var canvas = cropper.getCroppedCanvas({ width: 512, height: 512, imageSmoothingQuality: 'high', fillColor: '#fff' });
     canvas.toBlob(function (blob) {
-      var out = new File([blob], cropName, { type: 'image/jpeg' }), dt = new DataTransfer();
-      dt.items.add(out);
-      photoInput.files = dt.files;
-      var box = document.getElementById('avatar');
-      box.innerHTML = '';
-      var img = document.createElement('img');
-      img.alt = 'Profile photo preview';
-      img.src = canvas.toDataURL('image/jpeg', 0.9);
-      box.appendChild(img);
-      closeCropper(false);
+      var out = new File([blob], cropName, { type: 'image/jpeg' }), fd = new FormData();
+      fd.append('photo', out);
+      var err = document.getElementById('photo-error'), hint = document.getElementById('photo-hint');
+      err.textContent = '';
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+      fetch("{{ url_for('jobseeker_profile_photo') }}", { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { err.textContent = d.error || 'Could not save the photo.'; return; }
+          var box = document.getElementById('avatar');
+          box.innerHTML = '';
+          var img = document.createElement('img');
+          img.alt = 'Profile photo'; img.src = d.url;
+          box.appendChild(img);
+          var pill = document.querySelector('.topbar-avatar');
+          if (pill) {
+            var ni = document.createElement('img');
+            ni.className = 'topbar-avatar'; ni.alt = ''; ni.src = d.url;
+            pill.replaceWith(ni);
+          }
+          photoInput.value = '';
+          hint.textContent = 'Photo saved.';
+          closeCropper(false);
+        })
+        .catch(function () { err.textContent = 'Could not save the photo. Please try again.'; })
+        .finally(function () { saveBtn.disabled = false; saveBtn.innerHTML = 'Crop &amp; Save'; });
     }, 'image/jpeg', 0.9);
   });
   document.addEventListener('DOMContentLoaded', function () {

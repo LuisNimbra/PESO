@@ -830,12 +830,21 @@ def current_user():
 def inject_globals():
     pending_employers_count = 0
     employer_approved = False
+    user_photo = ''
     role = session.get('role')
     if role == ROLE_ADMIN:
         try:
             pending_employers_count = get_db().execute(
                 "SELECT COUNT(*) FROM employers WHERE is_approved=0 AND approval_requested=1"
             ).fetchone()[0]
+        except Exception:
+            pass
+    elif role == ROLE_JOBSEEKER:
+        try:
+            row = get_db().execute(
+                'SELECT photo FROM applicants WHERE user_id=?', (session.get('user_id'),)
+            ).fetchone()
+            user_photo = (row['photo'] if row else '') or ''
         except Exception:
             pass
     elif role == ROLE_EMPLOYER:
@@ -851,6 +860,7 @@ def inject_globals():
         'session_role':            role or '',
         'pending_employers_count': pending_employers_count,
         'employer_approved':       employer_approved,
+        'user_photo':             user_photo,
     }
 
 # ── TEMPLATE FILTERS ──────────────────────────────────────────────────────────
@@ -1211,6 +1221,22 @@ def jobseeker_dashboard():
                            ap=ap, top_rec=top_rec,
                            referrals=referrals,
                            active_vacancies=active_vacancies)
+
+@app.route('/jobseeker/profile/photo', methods=['POST'])
+@jobseeker_required
+def jobseeker_profile_photo():
+    """Save a cropped profile photo right away (called by the crop modal)."""
+    ap = _get_my_applicant()
+    photo = request.files.get('photo')
+    if not ap or not photo or not photo.filename:
+        return jsonify(ok=False, error='No photo received.'), 400
+    name, err = _save_profile_photo(photo, ap)
+    if err:
+        return jsonify(ok=False, error=err), 400
+    db = get_db()
+    db.execute('UPDATE applicants SET photo=? WHERE id=?', (name, ap['id']))
+    db.commit()
+    return jsonify(ok=True, url=url_for('profile_photo', filename=name))
 
 @app.route('/jobseeker/profile', methods=['GET', 'POST'])
 @jobseeker_required
