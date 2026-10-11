@@ -195,7 +195,11 @@ BARANGAY_DISTRICT = {
 }
 
 
-def barangay_to_district(raw):
+def barangay_to_district(raw, city=''):
+    """District 1/2 exists only for City of San Jose del Monte; barangay names such as
+    'Poblacion' repeat in other cities, so any other city gets no district."""
+    if 'san jose del monte' not in str(city).lower():
+        return ''
     return BARANGAY_DISTRICT.get(re.sub(r'\s+', ' ', str(raw)).strip().upper(), '')
 
 
@@ -1225,7 +1229,7 @@ def jobseeker_profile():
             f.get('first_name', '').strip(), f.get('middle_name', '').strip(),
             f.get('last_name', '').strip(), f.get('suffix', '').strip(),
             f.get('sex', ''), age, bd, f.get('civil_status', '').strip(),
-            f.get('address_line', '').strip(), brgy, barangay_to_district(brgy),
+            f.get('address_line', '').strip(), brgy, barangay_to_district(brgy, f.get('city', '')),
             f.get('city', '').strip(), f.get('province', '').strip(),
             f.get('height_cm', '').strip(), f.get('religion', '').strip(),
             f.get('tin', '').strip(), f.get('landline', '').strip(),

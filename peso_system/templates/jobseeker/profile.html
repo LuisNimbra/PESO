@@ -128,23 +128,28 @@
             {% for c in civil_statuses %}<option value="{{ c }}" {% if ap.civil_status == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-sm-8">
+        <div class="col-12">
+          <div class="row g-3" id="loc-box" data-location data-psgc-base="{{ url_for('static', filename='data/psgc/') }}">
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold small">Province</label>
+              <input type="text" name="province" data-loc="province" class="form-control" maxlength="60" autocomplete="off"
+                     placeholder="Type to search" value="{{ ap.province or 'Bulacan' }}" />
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold small">City / Municipality</label>
+              <input type="text" name="city" data-loc="city" class="form-control" maxlength="60" autocomplete="off"
+                     placeholder="Select province first" value="{{ ap.city or 'City of San Jose del Monte' }}" />
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold small">Barangay</label>
+              <input type="text" name="barangay" id="barangay-input" data-loc="barangay" class="form-control" maxlength="60" autocomplete="off"
+                     placeholder="Select city / municipality first" value="{{ ap.barangay or '' }}" />
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
           <label class="form-label fw-semibold small">Present address (House no., Street, Village)</label>
           <input type="text" name="address_line" class="form-control" maxlength="150" value="{{ ap.address_line or '' }}" />
-        </div>
-        <div class="col-sm-4">
-          <label class="form-label fw-semibold small">Barangay</label>
-          <input type="text" name="barangay" id="barangay-input" class="form-control" list="barangay-list"
-                 autocomplete="off" maxlength="60" value="{{ ap.barangay or '' }}" oninput="autoFillDistrict(this.value)" />
-          <datalist id="barangay-list">{% for b in barangays %}<option value="{{ b|title }}">{% endfor %}</datalist>
-        </div>
-        <div class="col-sm-4">
-          <label class="form-label fw-semibold small">City / Municipality</label>
-          <input type="text" name="city" class="form-control" maxlength="60" value="{{ ap.city or 'City of San Jose del Monte' }}" />
-        </div>
-        <div class="col-sm-4">
-          <label class="form-label fw-semibold small">Province</label>
-          <input type="text" name="province" class="form-control" maxlength="60" value="{{ ap.province or 'Bulacan' }}" />
         </div>
         <input type="hidden" name="district" value="{{ ap.district or '' }}" id="district-input" />
         <div class="col-sm-3">
@@ -484,12 +489,16 @@
     });
   })();
   var BRGY_MAP = {{ barangay_district_map|tojson }};
-  function autoFillDistrict(v) {
+  // District 1/2 only exists for City of San Jose del Monte; other cities leave it blank.
+  function autoFillDistrict() {
+    var city = document.querySelector('[data-loc="city"]').value.toLowerCase();
+    var v = document.getElementById('barangay-input').value;
     var key = (v || '').toUpperCase().replace(/\s+/g, ' ').trim();
-    var d = BRGY_MAP[key] || '';
+    var d = city.indexOf('san jose del monte') !== -1 ? (BRGY_MAP[key] || '') : '';
     var el = document.getElementById('district-input');
     if (el) el.value = d;
   }
+  document.getElementById('loc-box').addEventListener('change', autoFillDistrict);
   var SKILL_LIMIT = 5;
   function addChip(targetId, text) {
     var ta = document.getElementById(targetId);
