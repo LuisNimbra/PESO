@@ -11,6 +11,9 @@
 .avatar { width:110px; height:110px; border-radius:50%; overflow:hidden; display:flex; align-items:center;
   justify-content:center; background:#eff6ff; color:#93c5fd; border:3px solid #dbeafe; font-size:3.6rem; }
 .avatar img { width:100%; height:100%; object-fit:cover; }
+.my-picker .form-select { flex:1 1 0; min-width:0; }
+.my-picker .form-select option { color:#212529; }
+[data-theme="dark"] .my-picker .form-select option { color:#e2e8f0; }
 .flatpickr-calendar { border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); width:307.875px; max-width:calc(100vw - 24px); }
 .flatpickr-calendar.hasFooter { padding-bottom:6px; }
 .flatpickr-current-month { display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; width:100%; left:0; }
@@ -214,7 +217,11 @@
           <div class="form-check"><input class="form-check-input" type="checkbox" name="is_former_ofw" value="1" id="is_fofw" onchange="toggle('fofw-fields', this.checked)" {% if ap.is_former_ofw %}checked{% endif %} /><label class="form-check-label small" for="is_fofw">Former OFW?</label></div>
           <div id="fofw-fields" class="mt-1 d-flex gap-2">
             <input type="text" name="former_ofw_country" class="form-control form-control-sm" maxlength="60" value="{{ ap.former_ofw_country or '' }}" placeholder="Latest country of deployment" />
-            <input type="month" name="ofw_return_date" class="form-control form-control-sm" value="{{ ap.ofw_return_date or '' }}" title="Month/year of return" />
+            <div class="d-flex gap-2 w-100 my-picker" id="ofw-return-picker" data-value="{{ ap.ofw_return_date or '' }}" title="Month/year of return">
+              <input type="hidden" name="ofw_return_date" id="ofw-return-value" />
+              <select id="ofw-return-month" class="form-select form-select-sm" aria-label="Month of return"></select>
+              <select id="ofw-return-year" class="form-select form-select-sm" aria-label="Year of return"></select>
+            </div>
           </div>
         </div>
       </div>
@@ -523,6 +530,37 @@
     if (del) del.closest('.repeat-row').remove();
   });
   function toggle(id, show) { var el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; }
+
+  // Month + Year dropdowns for "Former OFW" return date (submits YYYY-MM via hidden input)
+  (function () {
+    var box = document.getElementById('ofw-return-picker');
+    if (!box) return;
+    var mSel = document.getElementById('ofw-return-month');
+    var ySel = document.getElementById('ofw-return-year');
+    var out = document.getElementById('ofw-return-value');
+    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var parts = (box.dataset.value || '').split('-');
+    var curY = parseInt(parts[0], 10), curM = parseInt(parts[1], 10);
+
+    mSel.add(new Option('Select Month', ''));
+    months.forEach(function (n, i) { mSel.add(new Option(n, String(i + 1).padStart(2, '0'))); });
+
+    ySel.add(new Option('Select Year', ''));
+    var thisYear = new Date().getFullYear();
+    var oldest = isNaN(curY) ? thisYear - 40 : Math.min(thisYear - 40, curY);
+    for (var y = thisYear; y >= oldest; y--) ySel.add(new Option(y, y));
+
+    if (!isNaN(curM)) mSel.value = String(curM).padStart(2, '0');
+    if (!isNaN(curY)) ySel.value = String(curY);
+
+    function sync() {
+      out.value = (mSel.value && ySel.value) ? ySel.value + '-' + mSel.value : '';
+      [mSel, ySel].forEach(function (s) { s.classList.toggle('text-muted', !s.value); });
+    }
+    mSel.addEventListener('change', sync);
+    ySel.addEventListener('change', sync);
+    sync();
+  })();
   function empToggle() {
     var emp = document.getElementById('es_emp').checked;
     toggle('employed-fields', emp);
