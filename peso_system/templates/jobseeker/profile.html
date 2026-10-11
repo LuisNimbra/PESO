@@ -11,9 +11,6 @@
 .avatar { width:110px; height:110px; border-radius:50%; overflow:hidden; display:flex; align-items:center;
   justify-content:center; background:#eff6ff; color:#93c5fd; border:3px solid #dbeafe; font-size:3.6rem; }
 .avatar img { width:100%; height:100%; object-fit:cover; }
-.my-picker .form-select { flex:1 1 0; min-width:0; }
-.my-picker .form-select option { color:#212529; }
-[data-theme="dark"] .my-picker .form-select option { color:#e2e8f0; }
 .flatpickr-calendar { border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); width:307.875px; max-width:calc(100vw - 24px); }
 .flatpickr-calendar.hasFooter { padding-bottom:6px; }
 .flatpickr-current-month { display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; width:100%; left:0; }
@@ -217,11 +214,7 @@
           <div class="form-check"><input class="form-check-input" type="checkbox" name="is_former_ofw" value="1" id="is_fofw" onchange="toggle('fofw-fields', this.checked)" {% if ap.is_former_ofw %}checked{% endif %} /><label class="form-check-label small" for="is_fofw">Former OFW?</label></div>
           <div id="fofw-fields" class="mt-1 d-flex gap-2">
             <input type="text" name="former_ofw_country" class="form-control form-control-sm" maxlength="60" value="{{ ap.former_ofw_country or '' }}" placeholder="Latest country of deployment" />
-            <div class="d-flex gap-2 w-100 my-picker" id="ofw-return-picker" data-value="{{ ap.ofw_return_date or '' }}" title="Month/year of return">
-              <input type="hidden" name="ofw_return_date" id="ofw-return-value" />
-              <select id="ofw-return-month" class="form-select form-select-sm" aria-label="Month of return"></select>
-              <select id="ofw-return-year" class="form-select form-select-sm" aria-label="Year of return"></select>
-            </div>
+            <input type="text" name="ofw_return_date" id="ofw-return-date" class="form-control form-control-sm" placeholder="Month/year of return" autocomplete="off" value="{{ ap.ofw_return_date or '' }}" />
           </div>
         </div>
       </div>
@@ -275,10 +268,20 @@
           <datalist id="pos-list">{% for p in positions %}<option value="{{ p }}">{% endfor %}</datalist>
         </div>
         <div class="col-sm-4">
+          <label class="form-label fw-semibold small d-block">Where do you prefer to work?</label>
+          {% set pref_ovs = ap.pref_work_overseas and not ap.pref_work_local %}
+          <div class="btn-group w-100" role="group" aria-label="Preferred work place">
+            <input type="radio" class="btn-check" name="work_pref_type" id="wp_local" value="local" autocomplete="off" {% if not pref_ovs %}checked{% endif %} onchange="workPrefToggle()" />
+            <label class="btn btn-outline-primary" for="wp_local">Local</label>
+            <input type="radio" class="btn-check" name="work_pref_type" id="wp_ovs" value="overseas" autocomplete="off" {% if pref_ovs %}checked{% endif %} onchange="workPrefToggle()" />
+            <label class="btn btn-outline-primary" for="wp_ovs">Overseas</label>
+          </div>
+        </div>
+        <div class="col-sm-4" id="wp-local-box">
           <label class="form-label fw-semibold small">Preferred Work Location (Local)</label>
           <input type="text" name="pref_work_local" class="form-control" maxlength="80" value="{{ ap.pref_work_local or '' }}" placeholder="City / Province" />
         </div>
-        <div class="col-sm-4">
+        <div class="col-sm-4" id="wp-ovs-box">
           <label class="form-label fw-semibold small">Preferred Work Location (Overseas)</label>
           <input type="text" name="pref_work_overseas" class="form-control" maxlength="60" value="{{ ap.pref_work_overseas or '' }}" placeholder="Country" />
         </div>
@@ -293,8 +296,8 @@
       {% set lang_map = {} %}{% for l in ap.languages %}{% set _ = lang_map.update({l.language: l}) %}{% endfor %}
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0">
-          <thead><tr class="small text-muted"><th>Language</th><th class="text-center">Read</th><th class="text-center">Write</th><th class="text-center">Speak</th><th class="text-center">Understand</th></tr></thead>
-          <tbody>
+          <thead><tr class="small text-muted"><th>Language</th><th class="text-center">Read</th><th class="text-center">Write</th><th class="text-center">Speak</th><th class="text-center">Understand</th><th style="width:40px"></th></tr></thead>
+          <tbody id="lang-rows">
           {% for lang in languages_list %}
           {% set cur = lang_map.get(lang, {}) %}
           <tr>
@@ -302,11 +305,26 @@
             {% for s in ['read','write','speak','understand'] %}
             <td class="text-center"><input type="checkbox" class="form-check-input" name="lang_{{ lang|lower }}_{{ s }}" {% if cur.get(s) %}checked{% endif %} /></td>
             {% endfor %}
+            <td></td>
+          </tr>
+          {% endfor %}
+          {% for l in ap.languages if l.language not in languages_list %}
+          {% set n = loop.index %}
+          <tr class="lang-custom">
+            <td><input type="text" class="form-control form-control-sm" name="xlang_name_{{ n }}" value="{{ l.language }}" list="lang-options" maxlength="60" placeholder="Search or type a language" autocomplete="off" /></td>
+            {% for s in ['read','write','speak','understand'] %}
+            <td class="text-center"><input type="checkbox" class="form-check-input" name="xlang_{{ s }}_{{ n }}" {% if l.get(s) %}checked{% endif %} /></td>
+            {% endfor %}
+            <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="this.closest('tr').remove()" title="Remove" aria-label="Remove language"><i class="bi bi-trash"></i></button></td>
           </tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
+      <datalist id="lang-options">
+        {% for o in ['Cebuano','Ilocano','Hiligaynon','Waray','Kapampangan','Pangasinan','Bikol','Tausug','Maguindanaon','Chavacano','Japanese','Korean','Spanish','French','German','Arabic','Cantonese','Hokkien','Hindi','Italian','Portuguese','Russian','Thai','Vietnamese','Indonesian','Malay'] if o not in languages_list %}<option value="{{ o }}">{% endfor %}
+      </datalist>
+      <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addLang()"><i class="bi bi-plus-lg me-1"></i>Add Language</button>
     </div>
   </div>
 
@@ -463,12 +481,10 @@
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <script>
-  (function () {
-    var MIN_YEAR = 1950;
-    flatpickr('#birthdate', {
-      dateFormat: 'Y-m-d', altInput: true, altFormat: 'm/d/Y', altInputClass: 'form-control',
-      minDate: MIN_YEAR + '-01-01', maxDate: 'today', monthSelectorType: 'dropdown',
-      disableMobile: true, allowInput: false,
+  function initPicker(sel, MIN_YEAR, opts) {
+    flatpickr(sel, Object.assign({
+      monthSelectorType: 'dropdown', maxDate: 'today',
+      minDate: MIN_YEAR + '-01-01', disableMobile: true, allowInput: false,
       onReady: function (sel, str, fp) {
         var sy = document.createElement('select');
         sy.className = 'fp-year'; sy.setAttribute('aria-label', 'Year');
@@ -492,8 +508,10 @@
       onOpen: function (s, d, fp) { fp._fpYear.value = fp.currentYear; },
       onMonthChange: function (s, d, fp) { fp._fpYear.value = fp.currentYear; },
       onYearChange: function (s, d, fp) { fp._fpYear.value = fp.currentYear; }
-    });
-  })();
+    }, opts));
+  }
+  initPicker('#birthdate', 1950, { dateFormat: 'Y-m-d', altInput: true, altFormat: 'm/d/Y', altInputClass: 'form-control' });
+  initPicker('#ofw-return-date', new Date().getFullYear() - 40, { dateFormat: 'Y-m', altInput: true, altFormat: 'F Y', altInputClass: 'form-control form-control-sm' });
   var BRGY_MAP = {{ barangay_district_map|tojson }};
   // District 1/2 only exists for City of San Jose del Monte; other cities leave it blank.
   function autoFillDistrict() {
@@ -529,38 +547,31 @@
     var del = e.target.closest('.row-del');
     if (del) del.closest('.repeat-row').remove();
   });
+  // "+ Add Language": appends a custom row (name input with suggestions + 4 checkboxes + delete)
+  var langSeq = 1000;
+  function addLang() {
+    var n = ++langSeq, tr = document.createElement('tr');
+    tr.className = 'lang-custom';
+    var cells = ['read','write','speak','understand'].map(function (k) {
+      return '<td class="text-center"><input type="checkbox" class="form-check-input" name="xlang_' + k + '_' + n + '" /></td>';
+    }).join('');
+    tr.innerHTML = '<td><input type="text" class="form-control form-control-sm" name="xlang_name_' + n + '" list="lang-options" maxlength="60" placeholder="Search or type a language" autocomplete="off" /></td>' + cells +
+      '<td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="this.closest(\'tr\').remove()" title="Remove" aria-label="Remove language"><i class="bi bi-trash"></i></button></td>';
+    document.getElementById('lang-rows').appendChild(tr);
+    tr.querySelector('input[type=text]').focus();
+  }
+  // Job Preferences: show only the Local or Overseas location field (hidden one is disabled, so it saves blank)
+  function workPrefToggle() {
+    var ovs = document.getElementById('wp_ovs').checked;
+    [['wp-local-box', !ovs], ['wp-ovs-box', ovs]].forEach(function (p) {
+      var box = document.getElementById(p[0]);
+      box.style.display = p[1] ? '' : 'none';
+      box.querySelector('input').disabled = !p[1];
+    });
+  }
+  workPrefToggle();
   function toggle(id, show) { var el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; }
 
-  // Month + Year dropdowns for "Former OFW" return date (submits YYYY-MM via hidden input)
-  (function () {
-    var box = document.getElementById('ofw-return-picker');
-    if (!box) return;
-    var mSel = document.getElementById('ofw-return-month');
-    var ySel = document.getElementById('ofw-return-year');
-    var out = document.getElementById('ofw-return-value');
-    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    var parts = (box.dataset.value || '').split('-');
-    var curY = parseInt(parts[0], 10), curM = parseInt(parts[1], 10);
-
-    mSel.add(new Option('Select Month', ''));
-    months.forEach(function (n, i) { mSel.add(new Option(n, String(i + 1).padStart(2, '0'))); });
-
-    ySel.add(new Option('Select Year', ''));
-    var thisYear = new Date().getFullYear();
-    var oldest = isNaN(curY) ? thisYear - 40 : Math.min(thisYear - 40, curY);
-    for (var y = thisYear; y >= oldest; y--) ySel.add(new Option(y, y));
-
-    if (!isNaN(curM)) mSel.value = String(curM).padStart(2, '0');
-    if (!isNaN(curY)) ySel.value = String(curY);
-
-    function sync() {
-      out.value = (mSel.value && ySel.value) ? ySel.value + '-' + mSel.value : '';
-      [mSel, ySel].forEach(function (s) { s.classList.toggle('text-muted', !s.value); });
-    }
-    mSel.addEventListener('change', sync);
-    ySel.addEventListener('change', sync);
-    sync();
-  })();
   function empToggle() {
     var emp = document.getElementById('es_emp').checked;
     toggle('employed-fields', emp);

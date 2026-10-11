@@ -1197,6 +1197,16 @@ def jobseeker_profile():
             flags = {s: bool(f.get(f'lang_{key}_{s}')) for s in ('read', 'write', 'speak', 'understand')}
             if any(flags.values()):
                 languages.append({'language': lang, **flags})
+        # custom rows added with "+ Add Language": xlang_name_<n>, xlang_<skill>_<n>
+        seen = {l.lower() for l in LANGUAGE_CHOICES}
+        for k in sorted((k for k in f if k.startswith('xlang_name_')), key=lambda k: int(k.rsplit('_', 1)[1]) if k.rsplit('_', 1)[1].isdigit() else 0):
+            n = k.rsplit('_', 1)[1]
+            name = f.get(k, '').strip()[:60]
+            if not name or name.lower() in seen:
+                continue
+            seen.add(name.lower())
+            languages.append({'language': name,
+                              **{s: bool(f.get(f'xlang_{s}_{n}')) for s in ('read', 'write', 'speak', 'understand')}})
 
         disability = f.getlist('disability')
         dis_other  = f.get('disability_other', '').strip()
