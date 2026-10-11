@@ -973,14 +973,16 @@ def register():
     role = request.values.get('role', '')
     if request.method == 'POST':
         f         = request.form
-        full_name = f.get('full_name', '').strip()
+        first     = ' '.join(f.get('first_name', '').split())
+        last      = ' '.join(f.get('last_name', '').split())
+        full_name = f'{first} {last}'.strip()
         email     = f.get('email', '').strip()
         confirm   = f.get('confirm_email', '').strip()
         pw        = f.get('password', '')
         role      = f.get('role', '').strip()
 
         errs = []
-        if not all([full_name, email, pw]):
+        if not all([first, last, email, pw]):
             errs.append('All required fields must be filled.')
         if role not in (ROLE_JOBSEEKER, ROLE_EMPLOYER):
             errs.append('Please choose whether you are a jobseeker or an employer.')
@@ -1002,8 +1004,6 @@ def register():
             )
             uid = cur.lastrowid
             if role == ROLE_JOBSEEKER:
-                parts = full_name.split()
-                first, last = parts[0], ' '.join(parts[1:])
                 # Profile details (education, skills, etc.) are completed later
                 db.execute(
                     'INSERT INTO applicants (first_name, last_name, employment_status, '

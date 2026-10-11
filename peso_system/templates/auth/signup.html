@@ -45,12 +45,22 @@
   {% endwith %}
 
   <form method="POST" action="{{ url_for('register') }}">
-    <div class="mb-3">
-      <label class="form-label fw-semibold">Full name</label>
-      <div class="input-group">
-        <span class="input-group-text"><i class="bi bi-person"></i></span>
-        <input type="text" name="full_name" class="form-control" placeholder="Your full name"
-               value="{{ form.get('full_name','') }}" required autofocus maxlength="100" />
+    <div class="row g-2 mb-3">
+      <div class="col-12 col-sm-6">
+        <label class="form-label fw-semibold">First name</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <input type="text" name="first_name" class="form-control" placeholder="First name"
+                 value="{{ form.get('first_name','') }}" required autofocus maxlength="50" autocomplete="given-name" />
+        </div>
+      </div>
+      <div class="col-12 col-sm-6">
+        <label class="form-label fw-semibold">Last name / Surname</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <input type="text" name="last_name" class="form-control" placeholder="Last name"
+                 value="{{ form.get('last_name','') }}" required maxlength="50" autocomplete="family-name" />
+        </div>
       </div>
     </div>
     <div class="mb-3">
