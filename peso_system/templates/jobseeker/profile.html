@@ -634,6 +634,7 @@
     var yr = row.querySelector('.edu-year');
     if (yr && yr.options.length < 2) {
       var top = new Date().getFullYear(), sel = yr.dataset.selected || '';
+      yr.add(new Option('Present / On-going', 'Present'));
       for (var y = top; y >= 1960; y--) yr.add(new Option(y, y));
       if (sel && !yr.querySelector('option[value="' + sel + '"]')) yr.add(new Option(sel, sel));
       yr.value = sel;
