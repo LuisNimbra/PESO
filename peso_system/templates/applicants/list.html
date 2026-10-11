@@ -4,6 +4,13 @@
 
 {% block content %}
 {% set avatar_colors = ['#2563eb','#198754','#0dcaf0','#6f42c1','#fd7e14','#d63384','#20c997'] %}
+{% macro ap_avatar(ap, size='') -%}
+{%- if ap.photo -%}
+<img class="avatar" style="{{ size }}object-fit:cover;" src="{{ url_for('profile_photo', filename=ap.photo) }}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.fb" data-fb='<span class="avatar" style="{{ size }}background:{{ avatar_colors[ap.id % 7] }}">{{ ap.first_name[0] if ap.first_name }}{{ ap.last_name[0] if ap.last_name }}</span>' />
+{%- else -%}
+<span class="avatar" style="{{ size }}background:{{ avatar_colors[ap.id % 7] }}">{{ ap.first_name[0] if ap.first_name }}{{ ap.last_name[0] if ap.last_name }}</span>
+{%- endif -%}
+{%- endmacro %}
 
 <!-- ── Toolbar ────────────────────────────────────────────────────────────── -->
 <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
@@ -68,7 +75,7 @@
         <tr>
           <td>
             <div class="d-flex align-items-center gap-2">
-              <span class="avatar" style="width:34px;height:34px;font-size:.8rem;background:{{ avatar_colors[ap.id % 7] }}">{{ ap.first_name[0] if ap.first_name }}{{ ap.last_name[0] if ap.last_name }}</span>
+              {{ ap_avatar(ap, 'width:34px;height:34px;font-size:.8rem;') }}
               <div>
                 <strong>{{ ap.last_name }}, {{ ap.first_name }}</strong><br/>
                 <small>
@@ -112,7 +119,7 @@
     <div class="card applicant-card shadow-sm h-100 {% if not ap.skills or not ap.educ_level or not ap.preferred_position %}border-warning{% endif %}">
       <div class="card-body pb-2">
         <div class="d-flex align-items-center gap-3 mb-3">
-          <span class="avatar" style="background:{{ avatar_colors[ap.id % 7] }}">{{ ap.first_name[0] if ap.first_name }}{{ ap.last_name[0] if ap.last_name }}</span>
+          {{ ap_avatar(ap) }}
           <div class="overflow-hidden">
             <div class="fw-bold text-truncate">{{ ap.last_name }}, {{ ap.first_name }}</div>
             <div class="small text-muted">{{ ap.sex or '—' }}{% if ap.age is not none %} · {{ ap.age }} yrs{% endif %}</div>

@@ -83,3 +83,69 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+{% if action != 'edit' %}
+<script>
+  // Draft autosave for "Post a New Vacancy": every field is cached in localStorage as it changes and
+  // restored on reload. The draft is removed after the vacancy is posted (see employer/vacancies.html).
+  (function () {
+    var form = document.querySelector('form[method="POST"]');
+    var KEY = 'peso_vacancy_draft_{{ session.get("user_id") }}';
+    var SKIP_TYPES = ['hidden', 'file', 'password', 'submit', 'button'];
+    var timer = null, restoring = false;
+    function store(fn) { try { return fn(window.localStorage); } catch (e) { return null; } }
+    function fields() {
+      var seen = {}, out = [];
+      form.querySelectorAll('input, select, textarea').forEach(function (el) {
+        if (!el.name || SKIP_TYPES.indexOf(el.type) !== -1) return;
+        seen[el.name] = seen[el.name] === undefined ? 0 : seen[el.name] + 1;
+        out.push({ el: el, id: el.name + '#' + seen[el.name] });
+      });
+      return out;
+    }
+    function save() {
+      if (restoring) return;
+      var data = {};
+      fields().forEach(function (f) {
+        data[f.id] = (f.el.type === 'checkbox' || f.el.type === 'radio') ? f.el.checked : f.el.value;
+      });
+      store(function (s) { s.setItem(KEY, JSON.stringify(data)); });
+    }
+    function schedule() { clearTimeout(timer); timer = setTimeout(save, 300); }
+    function restore(data) {
+      restoring = true;
+      fields().forEach(function (f) {
+        if (!(f.id in data)) return;
+        var v = data[f.id], el = f.el;
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          if (el.checked === v) return;
+          el.checked = v;
+        } else {
+          if (el.type === 'date' && el.min && v && v < el.min) return;      // a past deadline is no longer valid
+          if (el.tagName === 'SELECT' && v && !el.querySelector('option[value="' + String(v).replace(/"/g, '\\"') + '"]')) return;
+          if (el.value === v) return;
+          el.value = v;
+        }
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      restoring = false;
+    }
+    var raw = store(function (s) { return s.getItem(KEY); }), draft = null;
+    try { draft = raw && JSON.parse(raw); } catch (e) {}
+    if (draft && typeof draft === 'object') {
+      restore(draft);
+      var n = document.createElement('div');
+      n.className = 'alert alert-info d-flex justify-content-between align-items-center py-2 small';
+      n.innerHTML = '<span>Your unsaved vacancy draft was restored.</span><button type="button" class="btn btn-sm btn-outline-secondary ms-2">Discard</button>';
+      n.querySelector('button').addEventListener('click', function () {
+        store(function (s) { s.removeItem(KEY); }); location.reload();
+      });
+      form.parentNode.insertBefore(n, form);
+    }
+    form.addEventListener('input', schedule);
+    form.addEventListener('change', schedule);
+  })();
+</script>
+{% endif %}
+{% endblock %}

@@ -72,3 +72,16 @@
 </div>
 {% endif %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+  // A vacancy was just posted: drop the saved "Post a New Vacancy" draft so the form starts fresh next time.
+  (function () {
+    var ok = document.querySelector('.alert-success');
+    if (!ok || !/Job vacancy posted/i.test(ok.textContent)) return;
+    try {
+      Object.keys(localStorage).forEach(function (k) { if (k.indexOf('peso_vacancy_draft_') === 0) localStorage.removeItem(k); });
+    } catch (e) {}
+  })();
+</script>
+{% endblock %}

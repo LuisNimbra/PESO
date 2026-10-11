@@ -445,7 +445,7 @@
       <div id="edu-rows" class="d-flex flex-column gap-2">
         {% for e in ap.education %}
         <div class="repeat-row edu-row row g-2 border rounded p-2">
-          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Education Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl or (e.level == 'ALS' and lvl.startswith('ALS')) %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
+          <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="" hidden {% if not e.level %}selected{% endif %}>Education Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}" {% if e.level == lvl or (e.level == 'ALS' and lvl.startswith('ALS')) %}selected{% endif %}>{{ lvl }}</option>{% endfor %}</select></div>
           <div class="col-md-4 edu-school-col"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" value="{{ e.school }}" /></div>
           <div class="col-md-2 edu-course-col d-none"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" value="{{ e.course }}" /></div>
           <div class="col-md-2"><select name="edu_year[]" class="form-select form-select-sm edu-year" data-selected="{{ e.year or '' }}"><option value="">Year</option></select></div>
@@ -549,7 +549,7 @@
 <style>.hh-wrap{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .25s ease,opacity .25s ease}.hh-wrap>div{overflow:hidden}.hh-wrap.open{grid-template-rows:1fr;opacity:1}</style>
 <style>#edu-rows .edu-row:only-child .row-del,#we-rows .we-row:only-child .row-del{display:none}.we-locked{pointer-events:none;background-color:var(--bs-secondary-bg,#e9ecef)}</style>
 <template id="edu-tpl"><div class="repeat-row edu-row row g-2 border rounded p-2">
-  <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="">Education Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}">{{ lvl }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><select name="edu_level[]" class="form-select form-select-sm edu-level"><option value="" hidden selected>Education Level</option>{% for lvl in educ_levels %}<option value="{{ lvl }}">{{ lvl }}</option>{% endfor %}</select></div>
   <div class="col-md-4 edu-school-col"><input name="edu_school[]" class="form-control form-control-sm" maxlength="120" placeholder="School" /></div>
   <div class="col-md-2 edu-course-col d-none"><input name="edu_course[]" class="form-control form-control-sm" maxlength="120" placeholder="Course" /></div>
   <div class="col-md-2"><select name="edu_year[]" class="form-select form-select-sm edu-year"><option value="">Year</option></select></div>
