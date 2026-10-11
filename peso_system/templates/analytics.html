@@ -4,6 +4,10 @@
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/date-picker.css') }}" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<script src="{{ url_for('static', filename='js/date-picker.js') }}"></script>
 <style>
   /* ── DESKTOP: cards size to content, capped so sparse data doesn't stretch ─── */
   .af-root   { display: flex; flex-direction: column; gap: .85rem; }
@@ -37,16 +41,11 @@
       <span class="fw-semibold small text-muted">
         <i class="bi bi-calendar3 me-1"></i>Filter by Registration Date:
       </span>
-      <input type="date" id="date-from" class="form-control form-control-sm" style="width:auto;" />
+      <input type="text" id="date-from" class="form-control form-control-sm" placeholder="From date" autocomplete="off" />
       <span class="text-muted small">to</span>
-      <input type="date" id="date-to"   class="form-control form-control-sm" style="width:auto;" />
+      <input type="text" id="date-to" class="form-control form-control-sm" placeholder="To date" autocomplete="off" />
       <button class="btn btn-sm btn-primary" onclick="loadCharts()">Apply</button>
-      <button class="btn btn-sm btn-outline-secondary" onclick="
-        var f=document.getElementById('date-from');
-        var t=document.getElementById('date-to');
-        f.value=''; f.removeAttribute('max');
-        t.value=''; t.removeAttribute('min');
-        loadCharts();">Clear</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="clearDates(); loadCharts();">Clear</button>
       <span class="vr mx-1 d-none d-sm-inline"></span>
       <button class="btn btn-sm filter-chip btn-outline-secondary" onclick="setDatePreset('month')">This Month</button>
       <button class="btn btn-sm filter-chip btn-outline-secondary" onclick="setDatePreset('year')">This Year</button>
@@ -381,12 +380,8 @@ function setDatePreset(range) {
   } else {
     return;
   }
-  const from = document.getElementById('date-from');
-  const to   = document.getElementById('date-to');
-  from.value = iso(start);
-  to.value   = iso(now);
-  to.min     = from.value;
-  from.max   = to.value;
+  fpFrom.setDate(iso(start), true);
+  fpTo.setDate(iso(now), true);
   loadCharts();
 }
 
@@ -448,20 +443,26 @@ function loadCharts() {
 
 document.addEventListener('DOMContentLoaded', loadCharts);
 
-// Date range enforcement — second date must always be after the first
-(function () {
-  var from = document.getElementById('date-from');
-  var to   = document.getElementById('date-to');
-  if (!from || !to) return;
-  from.addEventListener('change', function () {
-    to.min = this.value || '';
-    if (to.value && to.value < this.value) to.value = '';
-  });
-  to.addEventListener('change', function () {
-    from.max = this.value || '';
-    if (from.value && from.value > this.value) from.value = '';
-  });
-}());
+// Month/Year dropdown pickers; the second date can never be before the first.
+// The underlying inputs keep a Y-m-d value, so loadCharts() reads them exactly as before.
+const DP_MIN_YEAR = 2015;
+const dpOpts = { dateFormat: 'Y-m-d', altInput: true, altFormat: 'M j, Y', altInputClass: 'form-control form-control-sm dp-alt' };
+const fpFrom = initDropdownPicker('#date-from', DP_MIN_YEAR, Object.assign({}, dpOpts, {
+  onChange: function (sel, str) {
+    fpTo.set('minDate', str || DP_MIN_YEAR + '-01-01');
+    if (str && document.getElementById('date-to').value && document.getElementById('date-to').value < str) fpTo.clear();
+  }
+}));
+const fpTo = initDropdownPicker('#date-to', DP_MIN_YEAR, Object.assign({}, dpOpts, {
+  onChange: function (sel, str) {
+    fpFrom.set('maxDate', str || 'today');
+    if (str && document.getElementById('date-from').value > str) fpFrom.clear();
+  }
+}));
+function clearDates() {
+  fpFrom.clear(); fpTo.clear();
+  fpFrom.set('maxDate', 'today'); fpTo.set('minDate', DP_MIN_YEAR + '-01-01');
+}
 
 // Re-render charts with the new theme's colors when dark mode is toggled
 new MutationObserver(loadCharts).observe(document.documentElement, {

@@ -98,7 +98,7 @@
     function fields() {
       var seen = {}, out = [];
       form.querySelectorAll('input, select, textarea').forEach(function (el) {
-        if (!el.name || SKIP_TYPES.indexOf(el.type) !== -1) return;
+        if (!el.name || (SKIP_TYPES.indexOf(el.type) !== -1 && el.name !== 'req_documents')) return;
         seen[el.name] = seen[el.name] === undefined ? 0 : seen[el.name] + 1;
         out.push({ el: el, id: el.name + '#' + seen[el.name] });
       });

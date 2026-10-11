@@ -71,8 +71,86 @@
 {% endif %}
 
 <h6 class="fw-bold mb-3 mt-4"><i class="bi bi-file-earmark-text me-1"></i>Documents to Bring</h6>
-<div class="mb-4">
+<div class="mb-4" id="docs-picker">
   <label class="form-label fw-semibold">Documents the applicant should bring</label>
-  <textarea name="req_documents" rows="2" class="form-control" maxlength="500"
-            placeholder="e.g. Resume, Barangay Clearance, NBI Clearance">{{ vacancy.req_documents if vacancy and vacancy.req_documents else '' }}</textarea>
+  <input type="hidden" name="req_documents" id="req-documents" value="{{ vacancy.req_documents if vacancy and vacancy.req_documents else '' }}" />
+  <div class="d-flex flex-wrap gap-2" id="docs-chips" role="group" aria-label="Documents the applicant should bring"></div>
+  <div class="input-group input-group-sm mt-2 d-none" id="docs-other-box" style="max-width:420px;">
+    <input type="text" class="form-control" id="docs-other-input" maxlength="80" placeholder="Type a document, then press Add" />
+    <button type="button" class="btn btn-outline-primary" id="docs-other-add">Add</button>
+  </div>
+  <div class="form-text">Click to select. Use <strong>+ Others</strong> for anything not on the list.</div>
 </div>
+<style>
+  .doc-chip { cursor:pointer; padding:4px 12px; border-radius:999px; font-size:.8rem; font-weight:500; border:1px solid #cbd5e1;
+              background:#fff; color:#475569; transition:background .15s,border-color .15s,color .15s; }
+  .doc-chip:hover { background:#eff6ff; border-color:#93c5fd; color:#2563eb; }
+  .doc-chip.selected { background:#0d6efd; border-color:#0d6efd; color:#fff; }
+  .doc-chip.other { border-style:dashed; }
+  [data-theme="dark"] .doc-chip:not(.selected) { background:transparent; border-color:#475569; color:#cbd5e1; }
+</style>
+<script>
+  // Documents picker: the hidden req_documents holds the selected names as a comma-separated string
+  // (same format the job pages and referral slip already display).
+  (function () {
+    var DOCS = ['Resume / CV', 'Birth Certificate (PSA)', 'NBI Clearance', 'Police Clearance', 'Barangay Clearance',
+                'TIN ID / Verification Slip', 'SSS Number / ID', 'PhilHealth ID / MDR', 'Pag-IBIG (HDMF) Number',
+                'Barangay Health Certificate', 'Academic Transcript of Records (TOR) / Diploma'];
+    var MAX = 500;
+    var hidden = document.getElementById('req-documents'), box = document.getElementById('docs-chips'),
+        otherBox = document.getElementById('docs-other-box'), otherIn = document.getElementById('docs-other-input');
+    var selected = [];                                   // state: ordered array of chosen document names
+
+    function parse(v) {
+      var seen = {};
+      return (v || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) {
+        var k = x.toLowerCase(); if (!x || seen[k]) return false; seen[k] = 1; return true;
+      });
+    }
+    function has(name) { return selected.some(function (x) { return x.toLowerCase() === name.toLowerCase(); }); }
+    function sync() {
+      hidden.value = selected.join(', ');
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));   // lets the draft autosave notice
+      render();
+    }
+    function toggle(name) {
+      if (has(name)) selected = selected.filter(function (x) { return x.toLowerCase() !== name.toLowerCase(); });
+      else if ((selected.join(', ') + ', ' + name).length <= MAX) selected.push(name);
+      sync();
+    }
+    function chip(label, cls, onclick) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'doc-chip ' + cls; b.textContent = label; b.addEventListener('click', onclick);
+      return b;
+    }
+    function render() {
+      box.innerHTML = '';
+      DOCS.forEach(function (d) {
+        var b = chip(d, has(d) ? 'selected' : '', function () { toggle(d); });
+        b.setAttribute('aria-pressed', has(d));
+        box.appendChild(b);
+      });
+      selected.filter(function (x) { return !DOCS.some(function (d) { return d.toLowerCase() === x.toLowerCase(); }); })
+        .forEach(function (c) {                           // custom entries: selected chips, click to remove
+          var b = chip(c + '  ✕', 'selected', function () { toggle(c); });
+          b.title = 'Remove'; box.appendChild(b);
+        });
+      box.appendChild(chip('+ Others', 'other', function () {
+        otherBox.classList.toggle('d-none'); if (!otherBox.classList.contains('d-none')) otherIn.focus();
+      }));
+    }
+    function addOther() {
+      var v = otherIn.value.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!v) return;
+      if (!has(v) && (selected.join(', ') + ', ' + v).length <= MAX) selected.push(v);
+      otherIn.value = ''; sync(); otherIn.focus();
+    }
+    document.getElementById('docs-other-add').addEventListener('click', addOther);
+    otherIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addOther(); } });
+    hidden.addEventListener('change', function (e) {      // external restore (draft autosave) rewrote the value
+      if (e.isTrusted === false && parse(hidden.value).join(', ') !== selected.join(', ')) { selected = parse(hidden.value); render(); }
+    });
+    selected = parse(hidden.value);
+    render();
+  })();
+</script>
