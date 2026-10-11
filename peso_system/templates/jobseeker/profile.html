@@ -11,7 +11,31 @@
 .avatar { width:110px; height:110px; border-radius:50%; overflow:hidden; display:flex; align-items:center;
   justify-content:center; background:#eff6ff; color:#93c5fd; border:3px solid #dbeafe; font-size:3.6rem; }
 .avatar img { width:100%; height:100%; object-fit:cover; }
+.flatpickr-calendar { border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.18); width:307.875px; max-width:calc(100vw - 24px); }
+.flatpickr-calendar.hasFooter { padding-bottom:6px; }
+.flatpickr-current-month { display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; width:100%; left:0; }
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month select.fp-year {
+  appearance:auto; -webkit-appearance:menulist; height:36px; min-width:0; flex:1 1 0; font-size:16px; font-weight:600;
+  color:#0f172a; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:0 6px; cursor:pointer; }
+.flatpickr-current-month select.fp-year { flex:0 0 92px; }
+.flatpickr-current-month .flatpickr-monthDropdown-months:hover,
+.flatpickr-current-month select.fp-year:hover { background:#f1f5f9; }
+.flatpickr-current-month .numInputWrapper { display:none; }
+.flatpickr-day.selected, .flatpickr-day.selected:hover { background:#2563eb; border-color:#2563eb; }
+.flatpickr-day.today:not(.selected) { border-color:#2563eb; }
+.fp-footer { display:flex; justify-content:space-between; padding:6px 12px 2px; border-top:1px solid #e2e8f0; margin-top:4px; }
+.fp-footer button { background:none; border:0; color:#0969da; font-size:.85rem; padding:6px 4px; cursor:pointer; }
+.fp-footer button:hover { text-decoration:underline; }
+[data-theme="dark"] .flatpickr-calendar { background:#1e293b; }
+[data-theme="dark"] .flatpickr-day, [data-theme="dark"] span.flatpickr-weekday,
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month, [data-theme="dark"] .flatpickr-months .flatpickr-next-month { color:#e2e8f0; fill:#e2e8f0; }
+[data-theme="dark"] .flatpickr-day.flatpickr-disabled, [data-theme="dark"] .flatpickr-day.prevMonthDay, [data-theme="dark"] .flatpickr-day.nextMonthDay { color:#64748b; }
+[data-theme="dark"] .flatpickr-day:hover { background:#334155; border-color:#334155; }
+[data-theme="dark"] .fp-footer { border-color:#334155; }
+@media (max-width:575.98px) { .flatpickr-day { height:42px; line-height:42px; } .fp-footer button { padding:10px 6px; } }
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css" />
 {% endblock %}
 
 {% block content %}
@@ -78,7 +102,7 @@
         </div>
         <div class="col-sm-4">
           <label class="form-label fw-semibold small">Date of birth</label>
-          <input type="date" name="birthdate" class="form-control" value="{{ ap.birthdate or '' }}" />
+          <input type="text" name="birthdate" id="birthdate" class="form-control" placeholder="mm/dd/yyyy" autocomplete="off" value="{{ ap.birthdate or '' }}" />
         </div>
         <div class="col-sm-4">
           <label class="form-label fw-semibold small">Sex</label>
@@ -426,7 +450,39 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <script>
+  (function () {
+    var MIN_YEAR = 1950;
+    flatpickr('#birthdate', {
+      dateFormat: 'Y-m-d', altInput: true, altFormat: 'm/d/Y', altInputClass: 'form-control',
+      minDate: MIN_YEAR + '-01-01', maxDate: 'today', monthSelectorType: 'dropdown',
+      disableMobile: true, allowInput: false,
+      onReady: function (sel, str, fp) {
+        var sy = document.createElement('select');
+        sy.className = 'fp-year'; sy.setAttribute('aria-label', 'Year');
+        for (var y = new Date().getFullYear(); y >= MIN_YEAR; y--) {
+          var o = document.createElement('option'); o.value = o.textContent = y; sy.appendChild(o);
+        }
+        sy.addEventListener('change', function () { fp.changeYear(parseInt(this.value, 10)); });
+        fp.currentYearElement.parentNode.parentNode.appendChild(sy);
+        fp._fpYear = sy;
+        var ft = document.createElement('div'); ft.className = 'fp-footer';
+        ft.innerHTML = '<button type="button" data-a="clear">Clear</button><button type="button" data-a="today">Today</button>';
+        ft.addEventListener('click', function (e) {
+          var a = e.target.getAttribute('data-a');
+          if (a === 'clear') { fp.clear(); fp.close(); }
+          if (a === 'today') { fp.setDate(new Date(), true); fp.close(); }
+        });
+        fp.calendarContainer.appendChild(ft);
+        fp.calendarContainer.classList.add('hasFooter');
+        sy.value = fp.currentYear;
+      },
+      onOpen: function (s, d, fp) { fp._fpYear.value = fp.currentYear; },
+      onMonthChange: function (s, d, fp) { fp._fpYear.value = fp.currentYear; },
+      onYearChange: function (s, d, fp) { fp._fpYear.value = fp.currentYear; }
+    });
+  })();
   var BRGY_MAP = {{ barangay_district_map|tojson }};
   function autoFillDistrict(v) {
     var key = (v || '').toUpperCase().replace(/\s+/g, ' ').trim();
