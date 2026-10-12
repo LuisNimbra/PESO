@@ -77,7 +77,9 @@
     resetCity();
     elP.disabled = true;
     elP.placeholder = 'Loading...';
-    getJSON(base + 'provinces.json').then(function (list) {
+    // Exposed so other scripts (e.g. the profile draft restore) can wait for / drive the cascade.
+    box.pesoSet = function (p, c, b) { return setProvince(p).then(function () { setCity(c); setBarangay(b); }); };
+    box.pesoReady = getJSON(base + 'provinces.json').then(function (list) {
       provinces = list;
       provNames = list.map(function (x) { return x.n; });
       unlock(elP, 'Type to search');
@@ -93,6 +95,7 @@
       elP.value = saved.p;
       elC.value = saved.c;
       elB.value = saved.b;
+      box.pesoSet = function (p, c, b) { elP.value = p; elC.value = c; elB.value = b; return Promise.resolve(); };
     });
   }
 

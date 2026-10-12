@@ -1016,10 +1016,49 @@ def login():
             flash('Invalid email or password.', 'danger')
     return render_template('login.html')
 
+# ── CACHE / BACK-BUTTON PROTECTION ────────────────────────────────────────────
+@app.after_request
+def no_cache_private_pages(resp):
+    """Never let the browser cache app pages, so Back after logout can't show an old private page."""
+    if request.endpoint != 'static':
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+    return resp
+
+@app.route('/api/session/check')
+def session_check():
+    """Used by the page guard when a page is shown from history (Back/Forward)."""
+    return ('', 204) if 'user_id' in session else ('', 401)
+
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index'))
+    resp = redirect(url_for('index'))
+    resp.headers['Clear-Site-Data'] = '"cache", "storage"'   # drop cached pages + session/local storage (drafts)
+    return resp
+
+def _registration_conflicts(email, first, last):
+    """Field errors for a new account: email already used / same first+last name already registered.
+    Comparisons are case-insensitive and ignore extra spaces."""
+    errs = {}
+    db = get_db()
+    if email and db.execute('SELECT 1 FROM users WHERE lower(email) = lower(?)', (email,)).fetchone():
+        errs['email'] = 'This email address is already registered.'
+    if first and last:
+        full = f'{first} {last}'.lower()
+        rows = db.execute('SELECT full_name FROM users').fetchall()
+        if any(' '.join((r['full_name'] or '').split()).lower() == full for r in rows):
+            errs['name'] = 'An account with this name already exists.'
+    return errs
+
+@app.route('/api/register/check')
+def register_check():
+    """Live duplicate check used by the signup form (before the final submit)."""
+    a = request.args
+    first = ' '.join(a.get('first_name', '').split())
+    last  = ' '.join(a.get('last_name', '').split())
+    return jsonify(_registration_conflicts(a.get('email', '').strip(), first, last))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -1047,10 +1086,11 @@ def register():
             errs.append('Email addresses do not match.')
         if len(pw) < 8:
             errs.append('Password must be at least 8 characters.')
-        if errs:
+        field_errs = _registration_conflicts(email, first, last)
+        if errs or field_errs:
             for e in errs:
                 flash(e, 'danger')
-            return render_template('auth/signup.html', form=f, role=role)
+            return render_template('auth/signup.html', form=f, role=role, errors=field_errs)
         db = get_db()
         try:
             cur = db.execute(
@@ -1080,7 +1120,8 @@ def register():
             return redirect(url_for('login'))
         except sqlite3.IntegrityError:
             db.rollback()
-            flash('That email is already registered.', 'danger')
+            return render_template('auth/signup.html', form=f, role=role,
+                                   errors={'email': 'This email address is already registered.'})
     return render_template('auth/signup.html', form={}, role=role)
 
 @app.route('/settings/password', methods=['GET', 'POST'])

@@ -933,12 +933,17 @@
       return JSON.stringify({ counts: counts(), data: data });
     }
     function save() {
-      if (restoring) return;
+      if (restoring || baseline === null) return;   // never write before the saved state is known
       var snap = snapshot();
       // Identical to what's saved in the database -> nothing to restore, so keep no draft at all
       store(function (s) { if (snap === baseline) s.removeItem(KEY); else s.setItem(KEY, snap); });
     }
-    function schedule() { clearTimeout(timer); timer = setTimeout(save, 300); }
+    // Only genuine user events may touch the stored draft. Events fired by the page's own scripts during
+    // load/restore (isTrusted === false) must never overwrite it with a half-populated form.
+    function schedule(e) {
+      if (!e || !e.isTrusted) return;
+      clearTimeout(timer); timer = setTimeout(save, 300);
+    }
 
     function matchRows(sel, n, add) {
       var rows = document.querySelectorAll(sel);
@@ -952,52 +957,74 @@
         if (draft.counts[k] !== undefined) matchRows(SECTIONS[k], Math.max(1, draft.counts[k]), function () { addRow(k); });
       });
       matchRows('#lang-rows .lang-custom', draft.counts.lang || 0, addLang);
-      fields().forEach(function (f) {
-        if (!(f.id in draft.data)) return;
-        var v = draft.data[f.id], el = f.el;
-        if (el.type === 'checkbox' || el.type === 'radio') {
-          if (el.checked === v) return;
-          el.checked = v;
-        } else {
-          if (el.tagName === 'SELECT' && v && !el.querySelector('option[value="' + String(v).replace(/"/g, '\\"') + '"]')) return;
-          if (el.value === v) return;
-          el.value = v;
-        }
-        el.dispatchEvent(new Event('change', { bubbles: true }));   // runs the conditional-field logic
-      });
+      // Several passes: setting a parent field (e.g. city/barangay, education level) fires its change handler,
+      // which may only then create the options a later dropdown needs. Repeat until nothing is left to apply.
+      for (var pass = 0; pass < 5; pass++) {
+        var pending = 0;
+        fields().forEach(function (f) {
+          if (!(f.id in draft.data) || f.el.hasAttribute('data-loc')) return;
+          var v = draft.data[f.id], el = f.el;
+          if (el.type === 'checkbox' || el.type === 'radio') {
+            if (el.checked === v) return;
+            el.checked = v;
+          } else {
+            if (el.tagName === 'SELECT' && v && !el.querySelector('option[value="' + String(v).replace(/"/g, '\\"') + '"]')) { pending++; return; }
+            if (el.value === v) return;
+            el.value = v;
+          }
+          pending++;
+          el.dispatchEvent(new Event('change', { bubbles: true }));   // runs the conditional-field logic
+        });
+        if (!pending) break;
+      }
       ['empToggle', 'ofwToggle', 'workPrefToggle', 'limitOtherSkills', 'autoFillDistrict', 'initEligRows'].forEach(function (fn) {
         try { window[fn](); } catch (e) {}
       });
-      restoring = false;
+      var box = document.querySelector('[data-location]'), d = draft.data;
+      var done = (box && box.pesoSet && ('province#0' in d))
+        ? box.pesoSet(d['province#0'], d['city#0'], d['barangay#0']) : Promise.resolve();
+      return done.then(function () {
+        try { window.autoFillDistrict(); } catch (e) {}
+        restoring = false;
+      });
     }
     function showBanner() {
       var n = document.createElement('div');
       n.className = 'alert alert-info d-flex justify-content-between align-items-center py-2 small';
       n.innerHTML = '<span>Your unsaved changes were restored. Click <strong>Save Profile</strong> to keep them.</span>' +
-                    '<button type="button" class="btn btn-sm btn-outline-secondary ms-2">Discard</button>';
-      n.querySelector('button').addEventListener('click', function () {
+                    '<span class="d-flex align-items-center gap-2"><button type="button" class="btn btn-sm btn-outline-secondary" data-act="discard">Discard</button>' +
+                    '<button type="button" class="btn-close" data-act="close" aria-label="Close"></button></span>';
+      n.querySelector('[data-act="close"]').addEventListener('click', function () { n.remove(); });
+      n.querySelector('[data-act="discard"]').addEventListener('click', function () {
         store(function (s) { s.removeItem(KEY); }); location.reload();
       });
       form.parentNode.insertBefore(n, form);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-      baseline = snapshot();
-      var saved = document.querySelector('.alert-success');
-      if (saved && /Profile saved/i.test(saved.textContent)) {
-        store(function (s) { s.removeItem(KEY); });      // successful save: start fresh
-      } else {
+      var box = document.querySelector('[data-location]');
+      var ready = (box && box.pesoReady) || Promise.resolve();
+      // Wait until the Province > City > Barangay cascade has filled itself from the saved profile,
+      // so the baseline is the real saved state and the draft restore isn't overwritten afterwards.
+      ready.catch(function () {}).then(function () {
+        baseline = snapshot();
+        var saved = document.querySelector('.alert-success');
+        if (saved && /Profile saved/i.test(saved.textContent)) {
+          store(function (s) { s.removeItem(KEY); });      // successful save: start fresh
+          return;
+        }
         var raw = store(function (s) { return s.getItem(KEY); }), draft = null;
         try { draft = raw && JSON.parse(raw); } catch (e) {}
         if (draft && draft.data && draft.counts) {
-          restore(draft);
-          // Banner only if the restored form really differs from the saved profile
-          if (snapshot() !== baseline) showBanner();
-          else store(function (s) { s.removeItem(KEY); });
+          restore(draft).then(function () {
+            // Banner only if the restored form really differs from the saved profile
+            if (snapshot() !== baseline) showBanner();
+            else store(function (s) { s.removeItem(KEY); });
+          });
         } else if (raw) {
           store(function (s) { s.removeItem(KEY); });
         }
-      }
+      });
       form.addEventListener('input', schedule);
       form.addEventListener('change', schedule);
       form.addEventListener('click', schedule);          // add / remove rows, chips, custom languages

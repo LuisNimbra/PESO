@@ -32,7 +32,7 @@
     {% for category, message in messages %}
     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
       {{ message }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" data-coreui-dismiss="alert" aria-label="Close"></button>
     </div>
     {% endfor %}
   {% endwith %}
@@ -43,7 +43,7 @@
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-envelope"></i></span>
         <input type="email" name="email" class="form-control" placeholder="Enter email address"
-               required autofocus autocomplete="email" maxlength="254" />
+               required autofocus autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="254" />
       </div>
     </div>
     <div class="mb-4">
@@ -71,6 +71,7 @@
   </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/credential-wipe.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/@coreui/coreui@5/dist/js/coreui.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
 <script>

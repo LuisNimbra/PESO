@@ -128,7 +128,7 @@
         {% for category, message in messages %}
         <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
           {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" data-coreui-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
       {% endwith %}
@@ -219,5 +219,28 @@
 }());
 </script>
 {% block scripts %}{% endblock %}
+<script>
+// Back-button guard: if a private page is restored from history (Back/Forward / bfcache) after the
+// session has ended, hide it, wipe client-side data and send the user to the sign-in page.
+(function () {
+  var LOGIN = "{{ url_for('login') }}", CHECK = "{{ url_for('session_check') }}";
+  function wipe() {
+    try { sessionStorage.clear(); } catch (e) {}
+    try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('peso_') === 0) localStorage.removeItem(k); }); } catch (e) {}
+  }
+  function verify(hide) {
+    if (hide) document.documentElement.style.visibility = 'hidden';
+    fetch(CHECK, { cache: 'no-store', credentials: 'same-origin' }).then(function (r) {
+      if (r.status === 401) { wipe(); location.replace(LOGIN); }
+      else document.documentElement.style.visibility = '';
+    }).catch(function () { document.documentElement.style.visibility = ''; });
+  }
+  window.addEventListener('pageshow', function (e) {
+    var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {};
+    if (e.persisted || nav.type === 'back_forward') verify(true);
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) verify(false); });
+})();
+</script>
 </body>
 </html>
