@@ -7,16 +7,15 @@
 body, .container-fluid { background: #fff !important; }
 .hero {
   position: relative;
-  background: linear-gradient(rgba(10,25,50,.55), rgba(10,25,50,.55)),
-              linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
-  background-size: cover;
-  background-position: center;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
   color: #fff;
-  padding: 4rem 1.5rem 4rem;
+  padding: 5rem 1.5rem;
   text-align: center;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 420px;
 }
-.hero h1 { color: #fff; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 800; }
-.hero p  { font-size: 1.05rem; color: rgba(255,255,255,.9); max-width: 600px; margin: 1rem auto 0; }
+.hero h1 { color: #fff; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: .02em; }
+.hero p  { font-size: clamp(1.05rem, 2vw, 1.25rem); color: rgba(255,255,255,.9); max-width: 640px; margin: .75rem auto 0; }
 .hero-cta { margin-top: 2.2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 .hero-signin, .hero-create { width: 260px; padding: .75rem 1.5rem; font-size: 1rem; border-radius: 8px; }
 .hero-signin { font-weight: 700; background: #1d4ed8; border: 2px solid #fff; color: #fff; }
@@ -24,7 +23,7 @@ body, .container-fluid { background: #fff !important; }
 .hero-create { background: transparent; border: 2px solid #fff; color: #fff; }
 .hero-create:hover { background: #fff; color: #1e3a5f; }
 .hero-seal { width: 120px; height: 120px; object-fit: contain; border-radius: 50%; background: #fff; padding: 4px; margin: 0 auto 1.25rem; display: block; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
-@media (max-width: 767.98px) { .hero { padding: 2.5rem 1rem 2.5rem; } .hero-seal { width: 96px; height: 96px; } }
+@media (max-width: 767.98px) { .hero { padding: 2.5rem 1rem; min-height: 0; } .hero-seal { width: 96px; height: 96px; } }
 </style>
 {% endblock %}
 
@@ -34,13 +33,8 @@ body, .container-fluid { background: #fff !important; }
 <div class="hero">
   <div class="container">
     <img src="{{ url_for('static', filename='img/peso_seal.png') }}" alt="PESO City of San Jose del Monte seal" class="hero-seal" />
-    <div class="mb-3">
-      <span style="background:rgba(255,255,255,.18);color:#fff;border-radius:20px;padding:.3rem .9rem;font-size:.8rem;font-weight:600;letter-spacing:.06em;">
-        PESO City of San Jose del Monte, Bulacan
-      </span>
-    </div>
-    <h1>Find a Job, Online</h1>
-    <p>The PESO CSJDM job matching portal. Jobseekers get matched to the right jobs and receive a referral online. Employers post vacancies and receive matched applicants. No more waiting in line at the office.</p>
+    <h1>PUBLIC EMPLOYMENT SERVICE OFFICE</h1>
+    <p>New Government Center, Brgy. Dulong Bayan, City of San Jose del Monte, Bulacan</p>
     <div class="hero-cta">
       <a href="{{ url_for('login') }}" class="btn fw-bold hero-signin">
         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
