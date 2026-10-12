@@ -679,3 +679,7 @@ body { overflow-x: hidden; }
 
 /* Public nav links: no underline */
 .public-nav .nav-text-link { text-decoration: none; }
+
+/* Login Sign In: same brand gradient as the home page Sign In */
+.btn.login-signin { background: var(--peso-brand-grad); border: 2px solid #1e3a5f; color: #fff; box-shadow: 0 6px 16px rgba(30,58,95,.3); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.btn.login-signin:hover, .btn.login-signin:focus { background: #1e3a5f; border-color: #162d4a; color: #fff; transform: translateY(-2px); box-shadow: 0 10px 22px rgba(30,58,95,.4); }
