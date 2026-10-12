@@ -51,7 +51,10 @@
     </span>
     <span>PESO CSJDM</span>
   </a>
-  <div class="d-flex align-items-center gap-2">
+  <button type="button" class="public-nav-toggle" id="publicNavToggle" aria-label="Toggle menu" aria-expanded="false">
+    <i class="bi bi-list"></i>
+  </button>
+  <div class="d-flex align-items-center gap-2 public-nav-links" id="publicNavLinks">
     <button type="button" class="theme-toggle-btn" aria-label="Toggle dark mode" title="Toggle dark mode">
       <i class="bi bi-moon-stars-fill"></i>
     </button>
@@ -86,6 +89,11 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
+<script>
+(function(){var b=document.getElementById('publicNavToggle'),l=document.getElementById('publicNavLinks');
+if(!b||!l)return;b.addEventListener('click',function(){var o=l.classList.toggle('open');b.setAttribute('aria-expanded',o);
+b.firstElementChild.className=o?'bi bi-x-lg':'bi bi-list';});}());
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

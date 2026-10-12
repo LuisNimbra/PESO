@@ -658,3 +658,72 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 [data-theme="dark"] .ac-menu li { color: #e2e8f0; }
 [data-theme="dark"] .ac-menu li:hover, [data-theme="dark"] .ac-menu li.active { background: #334155; color: #fff; }
 @media (max-width: 575.98px) { .ac-menu li { padding: 11px 12px; } }
+
+/* ── MOBILE RESPONSIVE (phones & small tablets) ──────────────────────────── */
+html { -webkit-text-size-adjust: 100%; }
+img, video, canvas, svg { max-width: 100%; }
+body { overflow-x: hidden; }
+
+@media (max-width: 767.98px) {
+  /* Gutters: content never touches the screen edge */
+  .container-fluid.px-4, .container, .container-fluid { padding-left: 16px !important; padding-right: 16px !important; }
+  .header .container-fluid { padding-left: 8px !important; padding-right: 12px !important; }
+
+  /* Touch targets ≥ 44px; 16px font stops iOS zoom-on-focus */
+  .btn, .btn-sm { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .form-control, .form-select, .form-control-sm, .form-select-sm,
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea {
+    min-height: 44px; font-size: 16px !important;
+  }
+  .form-check-input { width: 1.4em; height: 1.4em; }
+  .form-check-label { padding: .35rem 0; }
+  .sidebar .nav-link { min-height: 48px; display: flex; align-items: center; }
+  .theme-toggle-btn { min-width: 44px; min-height: 44px; }
+  .pagination .page-link { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Stack grid columns, form rows and button groups into one column */
+  .row > [class*="col-"]:not(.col-auto):not([class*="col-6"]):not([class*="col-4"]) { flex: 0 0 100%; max-width: 100%; }
+  .btn-toolbar, .d-flex.gap-2.flex-wrap { flex-wrap: wrap; }
+  form .d-flex.justify-content-end, .card-footer.d-flex { flex-direction: column-reverse; align-items: stretch; gap: .5rem; }
+  form .d-flex.justify-content-end > .btn, .card-footer.d-flex > .btn { width: 100%; }
+
+  /* Tables scroll sideways inside their card instead of breaking the page */
+  .table-responsive, .card-body:has(> table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table thead th, .table tbody td { padding: .6rem .65rem; white-space: nowrap; }
+
+  /* Header + typography */
+  .topbar-user { display: none; }
+  .topbar-page-title { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  h1, .h1 { font-size: 1.5rem; } h2, .h2 { font-size: 1.3rem; } h3, .h3 { font-size: 1.15rem; }
+  .card-body { padding: 1rem; }
+
+  /* Modals fit the phone */
+  .modal-dialog { margin: .75rem; max-width: none !important; }
+  .modal-footer { flex-wrap: wrap; }
+  .modal-footer > .btn { flex: 1 1 100%; }
+}
+
+/* Sidebar drawer: full-ish width on phones */
+@media (max-width: 575.98px) {
+  .sidebar { width: min(82vw, 300px); }
+}
+
+/* Public nav: hamburger + slide-down panel */
+.public-nav-toggle { display: none; }
+@media (max-width: 767.98px) {
+  .public-nav { flex-wrap: wrap; height: auto !important; min-height: 56px; padding: 6px 16px !important; }
+  .public-nav-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border: 0; background: transparent;
+    font-size: 1.7rem; color: inherit; margin-left: auto;
+  }
+  .public-nav-links {
+    display: none !important; flex-direction: column; align-items: stretch !important;
+    width: 100%; gap: .5rem !important; padding: .5rem 0 .75rem;
+    animation: navSlide .2s ease-out;
+  }
+  .public-nav-links.open { display: flex !important; }
+  .public-nav-links .btn { width: 100%; }
+  .public-nav-links .theme-toggle-btn { align-self: flex-end; }
+}
+@keyframes navSlide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
