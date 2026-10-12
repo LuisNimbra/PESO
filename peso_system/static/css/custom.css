@@ -6,6 +6,8 @@
 
 /* ── DESIGN TOKENS ───────────────────────────────────────────────────────── */
 :root {
+  --peso-brand-grad: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);  /* same as About banner */
+  --peso-brand-dark: #1e3a5f;
   /* Brand */
   --peso-dark:  #1e3a5f;   /* navy */
   --peso-blue:  #2563eb;   /* accent blue */
@@ -663,6 +665,14 @@ body { overflow-x: hidden; }
 @keyframes navSlide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 
 /* Public footer: solid blue, white text */
-.public-footer { background: #1d4ed8; color: #fff; border-top: 0; }
+.public-footer { background: var(--peso-brand-grad); color: #fff; border-top: 0; }
 .public-footer a { color: #fff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #fff; }
 .public-footer a:hover { color: #fff; opacity: .8; }
+
+/* Public nav: blue bar (matches primary button blue) */
+.public-nav { background: var(--peso-brand-grad); border-bottom: 0; }
+.public-nav .brand, .public-nav .nav-text-link, .public-nav-toggle { color: #fff; }
+.public-nav .nav-text-link:hover { color: #fff; opacity: .8; }
+.public-nav .brand .icon-badge { box-shadow: 0 0 0 2px rgba(255,255,255,.35); }
+.public-nav-right .btn-primary { background: #fff; border-color: #fff; color: #1d4ed8; font-weight: 600; }
+.public-nav-right .btn-primary:hover { background: #eff6ff; border-color: #eff6ff; color: #1e40af; }
