@@ -902,7 +902,7 @@
     var SKIP = { photo: 1, district: 1 };               // photo is saved by the crop modal; district is derived from barangay
     var SKIP_TYPES = ['file', 'hidden', 'password', 'submit', 'button'];
     var SECTIONS = { edu: '#edu-rows .edu-row', trn: '#trn-rows .repeat-row', elig: '#elig-rows .elig-row', we: '#we-rows .we-row' };
-    var restoring = false, timer = null;
+    var restoring = false, timer = null, baseline = null;   // baseline = form as rendered from the saved profile
 
     function store(fn) { try { return fn(window.sessionStorage); } catch (e) { return null; } }
     function keyOf(el) {
@@ -925,13 +925,18 @@
       Object.keys(SECTIONS).forEach(function (k) { c[k] = document.querySelectorAll(SECTIONS[k]).length; });
       return c;
     }
-    function save() {
-      if (restoring) return;
+    function snapshot() {
       var data = {};
       fields().forEach(function (f) {
         data[f.id] = (f.el.type === 'checkbox' || f.el.type === 'radio') ? f.el.checked : f.el.value;
       });
-      store(function (s) { s.setItem(KEY, JSON.stringify({ counts: counts(), data: data })); });
+      return JSON.stringify({ counts: counts(), data: data });
+    }
+    function save() {
+      if (restoring) return;
+      var snap = snapshot();
+      // Identical to what's saved in the database -> nothing to restore, so keep no draft at all
+      store(function (s) { if (snap === baseline) s.removeItem(KEY); else s.setItem(KEY, snap); });
     }
     function schedule() { clearTimeout(timer); timer = setTimeout(save, 300); }
 
@@ -977,13 +982,21 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+      baseline = snapshot();
       var saved = document.querySelector('.alert-success');
       if (saved && /Profile saved/i.test(saved.textContent)) {
         store(function (s) { s.removeItem(KEY); });      // successful save: start fresh
       } else {
         var raw = store(function (s) { return s.getItem(KEY); }), draft = null;
         try { draft = raw && JSON.parse(raw); } catch (e) {}
-        if (draft && draft.data && draft.counts) { restore(draft); showBanner(); }
+        if (draft && draft.data && draft.counts) {
+          restore(draft);
+          // Banner only if the restored form really differs from the saved profile
+          if (snapshot() !== baseline) showBanner();
+          else store(function (s) { s.removeItem(KEY); });
+        } else if (raw) {
+          store(function (s) { s.removeItem(KEY); });
+        }
       }
       form.addEventListener('input', schedule);
       form.addEventListener('change', schedule);
