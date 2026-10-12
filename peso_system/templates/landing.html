@@ -7,23 +7,37 @@
 body, .container-fluid { background: #fff !important; }
 .hero {
   position: relative;
-  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
-  color: #fff;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(60% 55% at 50% 38%, rgba(37,99,235,.07), transparent 70%),
+    radial-gradient(circle at 1px 1px, rgba(30,58,95,.08) 1px, transparent 1.5px) 0 0 / 22px 22px,
+    #fff;
+  color: #1e293b;
   padding: 5rem 1.5rem;
   text-align: center;
   display: flex; align-items: center; justify-content: center;
+  flex: 1 0 auto;
   min-height: 420px;
 }
-.hero h1 { color: #fff; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: .02em; }
-.hero p  { font-size: clamp(1.05rem, 2vw, 1.25rem); color: rgba(255,255,255,.9); max-width: 640px; margin: .75rem auto 0; }
-.hero-cta { margin-top: 2.2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-.hero-signin, .hero-create { width: 260px; padding: .75rem 1.5rem; font-size: 1rem; border-radius: 8px; }
-.hero-signin { font-weight: 700; background: #1d4ed8; border: 2px solid #fff; color: #fff; }
-.hero-signin:hover { background: #1e40af; border-color: #fff; color: #fff; }
-.hero-create { background: transparent; border: 2px solid #fff; color: #fff; }
-.hero-create:hover { background: #fff; color: #1e3a5f; }
-.hero-seal { width: 120px; height: 120px; object-fit: contain; border-radius: 50%; background: #fff; padding: 4px; margin: 0 auto 1.25rem; display: block; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
-@media (max-width: 767.98px) { .hero { padding: 2.5rem 1rem; min-height: 0; } .hero-seal { width: 96px; height: 96px; } }
+body > .container-fluid { display: flex; flex-direction: column; }
+/* soft fade so the dot pattern dissolves toward the edges */
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 35%, #fff 100%); }
+.hero .container { width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.hero h1 { text-wrap: balance; color: #1e3a5f; font-size: clamp(1.7rem, 4vw, 2.75rem); font-weight: 800; letter-spacing: .015em; line-height: 1.15; margin: 0; }
+.hero h1::after { content: ""; display: block; width: 72px; height: 4px; border-radius: 4px; margin: 1.1rem auto 0;
+  background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.hero h1, .hero p { text-align: center; }
+.hero p  { font-size: clamp(1.05rem, 2vw, 1.25rem); color: #475569; max-width: 760px; margin: 1.1rem auto 0; text-wrap: balance; line-height: 1.6; }
+.hero-cta { margin-top: 2.4rem; display: flex; flex-direction: column; align-items: center; gap: .9rem; }
+.hero-signin, .hero-create { width: 280px; padding: .85rem 1.5rem; font-size: 1rem; border-radius: 10px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease; }
+.hero-signin { font-weight: 700; background: linear-gradient(180deg, #2563eb, #1d4ed8); border: 2px solid #1d4ed8; color: #fff; box-shadow: 0 6px 16px rgba(29,78,216,.28); }
+.hero-signin:hover { background: linear-gradient(180deg, #1d4ed8, #1e40af); border-color: #1e40af; color: #fff; transform: translateY(-2px); box-shadow: 0 10px 22px rgba(29,78,216,.35); }
+.hero-create { background: #fff; border: 2px solid #bfdbfe; color: #1d4ed8; box-shadow: 0 2px 8px rgba(15,23,42,.05); }
+.hero-create:hover { background: #eff6ff; border-color: #1d4ed8; color: #1d4ed8; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(29,78,216,.15); }
+.hero-signin:focus-visible, .hero-create:focus-visible { outline: 3px solid rgba(37,99,235,.4); outline-offset: 2px; }
+@media (max-width: 767.98px) { .hero { padding: 2.5rem 1rem; min-height: 0; } }
 </style>
 {% endblock %}
 
@@ -32,7 +46,6 @@ body, .container-fluid { background: #fff !important; }
 <!-- Hero -->
 <div class="hero">
   <div class="container">
-    <img src="{{ url_for('static', filename='img/peso_seal.png') }}" alt="PESO City of San Jose del Monte seal" class="hero-seal" />
     <h1>PUBLIC EMPLOYMENT SERVICE OFFICE</h1>
     <p>New Government Center, Brgy. Dulong Bayan, City of San Jose del Monte, Bulacan</p>
     <div class="hero-cta">
