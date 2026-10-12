@@ -44,3 +44,6 @@ flask.log
 # Virtual environments
 .env
 .env.local
+
+# Root-level screenshots
+/image*.png
