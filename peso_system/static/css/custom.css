@@ -676,3 +676,6 @@ body { overflow-x: hidden; }
 .public-nav .brand .icon-badge { box-shadow: 0 0 0 2px rgba(255,255,255,.35); }
 .public-nav-right .btn-primary { background: #fff; border-color: #fff; color: #1d4ed8; font-weight: 600; }
 .public-nav-right .btn-primary:hover { background: #eff6ff; border-color: #eff6ff; color: #1e40af; }
+
+/* Public nav links: no underline */
+.public-nav .nav-text-link { text-decoration: none; }
