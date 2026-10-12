@@ -14,11 +14,10 @@ body, .container-fluid { background: #fff !important; }
     radial-gradient(circle at 1px 1px, rgba(30,58,95,.08) 1px, transparent 1.5px) 0 0 / 22px 22px,
     #fff;
   color: #1e293b;
-  padding: 5rem 1.5rem;
+  padding: 4rem 1.5rem 3.5rem;
   text-align: center;
   display: flex; align-items: center; justify-content: center;
-  flex: 1 0 auto;
-  min-height: 420px;
+  flex: 0 0 auto;
 }
 body > .container-fluid { display: flex; flex-direction: column; }
 /* soft fade so the dot pattern dissolves toward the edges */
@@ -38,7 +37,42 @@ body > .container-fluid { display: flex; flex-direction: column; }
 .hero-create:hover { background: #eff6ff; border-color: #1d4ed8; color: #1d4ed8; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(29,78,216,.15); }
 .hero-signin:focus-visible, .hero-create:focus-visible { outline: 3px solid rgba(37,99,235,.4); outline-offset: 2px; }
 @media (max-width: 767.98px) { .hero { padding: 2.5rem 1rem; min-height: 0; } }
+.hero-seal { width: 104px; height: 104px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block; margin: 0 auto 1.4rem; box-shadow: 0 6px 18px rgba(30,58,95,.18); }
+.hero-tagline { font-size: 1rem !important; font-weight: 600; color: #1d4ed8 !important; margin-top: 1.1rem !important; letter-spacing: .01em; }
+.features { flex: 1 0 auto; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 3rem 1.5rem 3.5rem; }
+.features-title { text-align: center; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #64748b; margin-bottom: 1.6rem; }
+.feature-grid { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.feature-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.6rem 1.4rem; text-align: center; box-shadow: 0 2px 10px rgba(15,23,42,.04); transition: transform .15s ease, box-shadow .15s ease; }
+.feature-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(29,78,216,.1); }
+.feature-icon { width: 52px; height: 52px; border-radius: 14px; background: #eff6ff; color: #1d4ed8; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
+.feature-card h3 { font-size: 1.05rem; font-weight: 700; color: #1e3a5f; margin-bottom: .4rem; }
+.feature-card p { font-size: .92rem; color: #475569; margin: 0; line-height: 1.55; }
+.public-footer { background: #1e293b !important; color: #cbd5e1 !important; }
+.public-footer a { color: #fff !important; text-decoration-color: rgba(255,255,255,.5) !important; }
+@media (max-width: 767.98px) { .feature-grid { grid-template-columns: 1fr; } .features { padding: 2rem 1rem 2.5rem; } .hero-seal { width: 88px; height: 88px; } }
 </style>
+<!-- How it works -->
+<section class="features">
+  <div class="features-title">How it works</div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <span class="feature-icon"><i class="bi bi-person-vcard"></i></span>
+      <h3>Create your profile</h3>
+      <p>Register once and add your education, skills and work experience.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon"><i class="bi bi-bullseye"></i></span>
+      <h3>Get matched to jobs</h3>
+      <p>The system recommends vacancies that fit your qualifications.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon"><i class="bi bi-send-check"></i></span>
+      <h3>Receive your referral online</h3>
+      <p>No more waiting in line at the office. Employers post vacancies and get matched applicants.</p>
+    </div>
+  </div>
+</section>
+
 {% endblock %}
 
 {% block content %}
@@ -46,8 +80,10 @@ body > .container-fluid { display: flex; flex-direction: column; }
 <!-- Hero -->
 <div class="hero">
   <div class="container">
+    <img src="{{ url_for('static', filename='img/peso_seal.png') }}" alt="PESO City of San Jose del Monte seal" class="hero-seal" />
     <h1>PUBLIC EMPLOYMENT SERVICE OFFICE</h1>
     <p>New Government Center, Brgy. Dulong Bayan, City of San Jose del Monte, Bulacan</p>
+    <p class="hero-tagline">Find jobs. Get matched. Get your referral online.</p>
     <div class="hero-cta">
       <a href="{{ url_for('login') }}" class="btn fw-bold hero-signin">
         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
@@ -58,5 +94,27 @@ body > .container-fluid { display: flex; flex-direction: column; }
     </div>
   </div>
 </div>
+
+<!-- How it works -->
+<section class="features">
+  <div class="features-title">How it works</div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <span class="feature-icon"><i class="bi bi-person-vcard"></i></span>
+      <h3>Create your profile</h3>
+      <p>Register once and add your education, skills and work experience.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon"><i class="bi bi-bullseye"></i></span>
+      <h3>Get matched to jobs</h3>
+      <p>The system recommends vacancies that fit your qualifications.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon"><i class="bi bi-send-check"></i></span>
+      <h3>Receive your referral online</h3>
+      <p>No more waiting in line at the office. Employers post vacancies and get matched applicants.</p>
+    </div>
+  </div>
+</section>
 
 {% endblock %}
