@@ -34,7 +34,6 @@
   --bs-primary:      #2563eb;
   --bs-primary-rgb:  37, 99, 235;
 
-  /* Theme-sensitive surfaces (redefined under [data-theme="dark"] below) */
   --peso-header-bg:     rgba(255, 255, 255, .85);
   --peso-card-footer:   #fbfcfe;
   --peso-thead-bg:      #f8fafc;
@@ -413,11 +412,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-radius: 4px;
   padding: 2px;
 }
-[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
-[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
-[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.5);
-}
 
 /* ── TABLES ──────────────────────────────────────────────────────────────── */
 .table { --bs-table-border-color: var(--peso-border); }
@@ -515,34 +509,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .applicant-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
 .filter-chip { border-radius: 999px; font-weight: 600; }
 
-/* ── THEME TOGGLE BUTTON ─────────────────────────────────────────────────── */
-.theme-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid var(--peso-border);
-  background: var(--peso-surface);
-  color: var(--peso-muted);
-  cursor: pointer;
-  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
-  flex-shrink: 0;
-}
-.theme-toggle-btn:hover { background: var(--peso-bg); color: var(--peso-text); }
-
-/* Variant for use on colored/dark nav bars (employer & jobseeker portal nav) */
-.theme-toggle-btn-inverse {
-  border-color: rgba(255, 255, 255, .35);
-  background: rgba(255, 255, 255, .08);
-  color: rgba(255, 255, 255, .85);
-}
-.theme-toggle-btn-inverse:hover {
-  background: rgba(255, 255, 255, .18);
-  color: #fff;
-}
-
 /* Icon button that looks like the theme toggle but is not wired to it (e.g. Home link) */
 .icon-fab {
   display: inline-flex;
@@ -587,57 +553,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .accent-green  { --accent: #16a34a; }
 .accent-orange { --accent: #f59e0b; }
 
-/* ── DARK THEME TOKENS ────────────────────────────────────────────────────
-   Applied when <html data-theme="dark">. Paired with data-bs-theme="dark"
-   and data-coreui-theme="dark" so Bootstrap/CoreUI's own components
-   (modals, alerts, dropdowns, tables, form controls) switch automatically.
-   ────────────────────────────────────────────────────────────────────── */
-[data-theme="dark"] {
-  color-scheme: dark;
-
-  --peso-dark:  #0b1930;
-  --peso-blue:  #3b82f6;
-  --peso-blue-600: #60a5fa;
-
-  --peso-bg:      #0f1a2e;
-  --peso-surface: #16233d;
-  --peso-border:  #283a5c;
-  --peso-text:    #e2e8f0;
-  --peso-muted:   #93a3bd;
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, .35);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .45), 0 1px 2px rgba(0, 0, 0, .3);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, .4);
-  --shadow-lg: 0 12px 28px rgba(0, 0, 0, .5);
-
-  --cui-primary:     #3b82f6;
-  --cui-primary-rgb: 59, 130, 235;
-  --bs-primary:      #3b82f6;
-  --bs-primary-rgb:  59, 130, 235;
-
-  --peso-header-bg:    rgba(15, 26, 46, .85);
-  --peso-card-footer:  #131f38;
-  --peso-thead-bg:     #131f38;
-  --peso-progress-bg:  #1c2b48;
-  --peso-form-border:  #33476b;
-  --peso-form-label:   #cbd5e1;
-  --peso-success-tint: rgba(25, 135, 84, .18);
-  --peso-success-surface: var(--peso-surface);
-  --peso-success-border: var(--peso-border);
-  --peso-chart-amber: #c98500;
-  --peso-chart-teal:  #199e70;
-  --peso-status-good: #0ca30c;
-  --peso-cta-a: #16233d;
-  --peso-cta-b: #12271c;
-}
-
-[data-theme="dark"] .table tbody tr.table-success td { color: #d1fae5; }
-
-/* Pastel icon washes on the landing page read oddly on dark backgrounds */
-[data-theme="dark"] .feature-icon { background: rgba(255, 255, 255, .08) !important; }
-
-[data-theme="dark"] .hero { filter: brightness(.92); }
-
 /* ── AUTOCOMPLETE DROPDOWN ───────────────────────────────────────────────── */
 .ac-wrap { position: relative; }
 .ac-menu {
@@ -654,9 +569,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   transition: background-color .12s ease, color .12s ease;
 }
 .ac-menu li:hover, .ac-menu li.active { background: #eff6ff; color: #111827; }
-[data-theme="dark"] .ac-menu { background: #1e293b; border-color: #334155; box-shadow: 0 4px 10px rgba(0, 0, 0, .45); }
-[data-theme="dark"] .ac-menu li { color: #e2e8f0; }
-[data-theme="dark"] .ac-menu li:hover, [data-theme="dark"] .ac-menu li.active { background: #334155; color: #fff; }
 @media (max-width: 575.98px) { .ac-menu li { padding: 11px 12px; } }
 
 /* ── MOBILE RESPONSIVE (phones & small tablets) ──────────────────────────── */
@@ -678,7 +590,6 @@ body { overflow-x: hidden; }
   .form-check-input { width: 1.4em; height: 1.4em; }
   .form-check-label { padding: .35rem 0; }
   .sidebar .nav-link { min-height: 48px; display: flex; align-items: center; }
-  .theme-toggle-btn { min-width: 44px; min-height: 44px; }
   .pagination .page-link { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 
   /* Stack grid columns, form rows and button groups into one column */
@@ -694,7 +605,17 @@ body { overflow-x: hidden; }
   /* Header + typography */
   .topbar-user { display: none; }
   .topbar-page-title { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  h1, .h1 { font-size: 1.5rem; } h2, .h2 { font-size: 1.3rem; } h3, .h3 { font-size: 1.15rem; }
+  /* Typography: 14px base on phones; rem-based sizes scale from it, desktop keeps 16px */
+  html { font-size: 14px; }
+  body, p, li, td, th, .form-text { font-size: 14px; line-height: 1.5; }
+  h1, .h1 { font-size: 1.4rem; } h2, .h2 { font-size: 1.2rem; } h3, .h3 { font-size: 1.1rem; }
+  h4, .h4 { font-size: 1.05rem; } h5, .h5 { font-size: 1rem; } h6, .h6 { font-size: .9rem; }
+  .display-4, .display-5, .display-6 { font-size: 1.9rem; }
+  .fs-1 { font-size: 1.6rem !important; } .fs-2 { font-size: 1.35rem !important; } .fs-3 { font-size: 1.2rem !important; }
+  label, .form-label, .col-form-label { font-size: 13px; font-weight: 600; margin-bottom: .3rem; }
+  small, .small, .text-muted.small, .form-text, .badge, .table thead th { font-size: 12px; }
+  .btn { font-size: 14px; }
+  .btn-sm { font-size: 13px; }
   .card-body { padding: 1rem; }
 
   /* Modals fit the phone */
@@ -708,22 +629,40 @@ body { overflow-x: hidden; }
   .sidebar { width: min(82vw, 300px); }
 }
 
-/* Public nav: hamburger + slide-down panel */
+/* Public nav: brand left, text links centred, Sign In right; hamburger panel on phones */
+.public-nav { display: grid !important; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.public-nav-menu { display: contents; }
+.public-nav-center { display: flex; align-items: center; justify-content: center; gap: 2rem; }
+.public-nav-right { display: flex; justify-content: flex-end; }
+.nav-text-link {
+  color: var(--peso-text); background: none; border: 0; padding: 0;
+  font-weight: 600; font-size: .95rem; text-decoration: underline;
+  text-decoration-thickness: 2px; text-underline-offset: 6px;
+  text-decoration-color: currentColor; transition: opacity .15s ease;
+}
+.nav-text-link:hover { color: var(--peso-text); opacity: .65; }
 .public-nav-toggle { display: none; }
 @media (max-width: 767.98px) {
-  .public-nav { flex-wrap: wrap; height: auto !important; min-height: 56px; padding: 6px 16px !important; }
+  .public-nav { display: flex !important; flex-wrap: wrap; height: auto !important; min-height: 56px; padding: 6px 16px !important; }
   .public-nav-toggle {
     display: inline-flex; align-items: center; justify-content: center;
     width: 44px; height: 44px; border: 0; background: transparent;
     font-size: 1.7rem; color: inherit; margin-left: auto;
   }
-  .public-nav-links {
-    display: none !important; flex-direction: column; align-items: stretch !important;
-    width: 100%; gap: .5rem !important; padding: .5rem 0 .75rem;
+  .public-nav-menu {
+    display: none !important; flex-direction: column; align-items: stretch;
+    width: 100%; gap: .75rem; padding: .5rem 0 .75rem;
     animation: navSlide .2s ease-out;
   }
-  .public-nav-links.open { display: flex !important; }
-  .public-nav-links .btn { width: 100%; }
-  .public-nav-links .theme-toggle-btn { align-self: flex-end; }
+  .public-nav-menu.open { display: flex !important; }
+  .public-nav-center { flex-direction: column; gap: .25rem; }
+  .nav-text-link { padding: .6rem 0; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .public-nav-right .btn { width: 100%; }
+  .public-nav-right { justify-content: stretch; }
 }
 @keyframes navSlide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+/* Public footer: solid blue, white text */
+.public-footer { background: #1d4ed8; color: #fff; border-top: 0; }
+.public-footer a { color: #fff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #fff; }
+.public-footer a:hover { color: #fff; opacity: .8; }

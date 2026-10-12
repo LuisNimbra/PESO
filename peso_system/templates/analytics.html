@@ -464,9 +464,5 @@ function clearDates() {
   fpFrom.set('maxDate', 'today'); fpTo.set('minDate', DP_MIN_YEAR + '-01-01');
 }
 
-// Re-render charts with the new theme's colors when dark mode is toggled
-new MutationObserver(loadCharts).observe(document.documentElement, {
-  attributes: true, attributeFilter: ['data-theme']
-});
 </script>
 {% endblock %}

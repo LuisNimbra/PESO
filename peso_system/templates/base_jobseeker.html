@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Jobseeker Portal{% endblock %} &mdash; PESO CSJDM</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/peso_logo.png') }}" />
-  <script>
-  (function(){try{if(localStorage.getItem('peso-theme')==='dark'){var r=document.documentElement;r.setAttribute('data-theme','dark');r.setAttribute('data-bs-theme','dark');r.setAttribute('data-coreui-theme','dark');}}catch(e){}})();
-  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet"
@@ -114,9 +111,6 @@
       </button>
       <span class="topbar-page-title">{% block page_title %}{% endblock %}</span>
       <div class="ms-auto d-flex align-items-center gap-2">
-        <button type="button" class="theme-toggle-btn" aria-label="Toggle dark mode" title="Toggle dark mode">
-          <i class="bi bi-moon-stars-fill"></i>
-        </button>
         {% set _name = session.get('full_name', 'Jobseeker') %}
         <div class="topbar-user">
           {% if user_photo %}<img class="topbar-avatar" src="{{ url_for('profile_photo', filename=user_photo) }}" alt="" />
@@ -172,7 +166,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@coreui/coreui@5/dist/js/coreui.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
 <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 <script src="{{ url_for('static', filename='js/location-select.js') }}"></script>

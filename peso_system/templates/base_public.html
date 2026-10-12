@@ -5,16 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}PESO CSJDM{% endblock %} &mdash; Job Recommendation System</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/peso_logo.png') }}" />
-  <script>
-  (function(){try{if(localStorage.getItem('peso-theme')==='dark'){var r=document.documentElement;r.setAttribute('data-theme','dark');r.setAttribute('data-bs-theme','dark');r.setAttribute('data-coreui-theme','dark');}}catch(e){}})();
-  </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}" />
   <style>
-    body { font-family: 'Inter', sans-serif; background: var(--peso-bg); }
+    body { font-family: 'Inter', sans-serif; background: var(--peso-bg); display:flex; flex-direction:column; min-height:100vh; }
+    body > .container-fluid { flex:1 0 auto; }
     .public-nav {
       padding: 0 1.5rem;
       height: 56px;
@@ -54,18 +52,18 @@
   <button type="button" class="public-nav-toggle" id="publicNavToggle" aria-label="Toggle menu" aria-expanded="false">
     <i class="bi bi-list"></i>
   </button>
-  <div class="d-flex align-items-center gap-2 public-nav-links" id="publicNavLinks">
-    <button type="button" class="theme-toggle-btn" aria-label="Toggle dark mode" title="Toggle dark mode">
-      <i class="bi bi-moon-stars-fill"></i>
-    </button>
-    <a href="{{ url_for('public_jobs') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-list-task me-1"></i>Browse Jobs
-    </a>
-    {% block nav_signin %}
-    <a href="{{ url_for('login') }}" class="btn btn-sm btn-primary">
-      <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
-    </a>
-    {% endblock %}
+  <div class="public-nav-menu" id="publicNavLinks">
+    <div class="public-nav-center">
+      <a href="{{ url_for('about') }}" class="nav-text-link">About</a>
+      <a href="{{ url_for('public_jobs') }}" class="nav-text-link">Browse Jobs</a>
+    </div>
+    <div class="public-nav-right">
+      {% block nav_signin %}
+      <a href="{{ url_for('login') }}" class="btn btn-sm btn-primary">
+        <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
+      </a>
+      {% endblock %}
+    </div>
   </div>
 </nav>
 
@@ -82,12 +80,12 @@
   {% block content %}{% endblock %}
 </div>
 
-<footer class="text-center text-muted small py-4 border-top mt-5">
+<footer class="public-footer text-center small py-4" style="margin-top:auto;">
+  <a href="{{ url_for('about') }}" class="me-1">About</a> ·
   PESO City of San Jose del Monte, Bulacan · Job Recommendation System &copy; 2026
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
 <script>
 (function(){var b=document.getElementById('publicNavToggle'),l=document.getElementById('publicNavLinks');

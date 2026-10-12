@@ -914,6 +914,10 @@ def index():
         return redirect(_role_home())
     return render_template('landing.html')
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
 @app.route('/jobs')
 def public_jobs():
     db = get_db()

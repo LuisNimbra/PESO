@@ -4,33 +4,27 @@
 
 {% block head %}
 <style>
+body, .container-fluid { background: #fff !important; }
 .hero {
-  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+  position: relative;
+  background: linear-gradient(rgba(10,25,50,.55), rgba(10,25,50,.55)),
+              linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+  background-size: cover;
+  background-position: center;
   color: #fff;
-  padding: 5rem 1.5rem 4rem;
+  padding: 4rem 1.5rem 4rem;
   text-align: center;
 }
-.hero h1 { font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 800; }
-.hero p  { font-size: 1.05rem; opacity: .85; max-width: 600px; margin: 1rem auto 0; }
+.hero h1 { color: #fff; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 800; }
+.hero p  { font-size: 1.05rem; color: rgba(255,255,255,.9); max-width: 600px; margin: 1rem auto 0; }
 .hero-cta { margin-top: 2.2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 .hero-signin, .hero-create { width: 260px; padding: .75rem 1.5rem; font-size: 1rem; border-radius: 8px; }
 .hero-signin { font-weight: 700; background: #1d4ed8; border: 2px solid #fff; color: #fff; }
 .hero-signin:hover { background: #1e40af; border-color: #fff; color: #fff; }
-.hero-create:hover { color: #1e3a5f; }
-.feature-section { padding: 3.5rem 1.5rem; }
-.feature-card {
-  border-radius: 12px;
-  padding: 1.75rem;
-  text-align: center;
-  height: 100%;
-}
-.feature-icon {
-  width: 56px; height: 56px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.4rem;
-  margin: 0 auto 1rem;
-}
-.step-row { border-radius: 12px; padding: 2rem; height: 100%; }
+.hero-create { background: transparent; border: 2px solid #fff; color: #fff; }
+.hero-create:hover { background: #fff; color: #1e3a5f; }
+.hero-seal { width: 120px; height: 120px; object-fit: contain; border-radius: 50%; background: #fff; padding: 4px; margin: 0 auto 1.25rem; display: block; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+@media (max-width: 767.98px) { .hero { padding: 2.5rem 1rem 2.5rem; } .hero-seal { width: 96px; height: 96px; } }
 </style>
 {% endblock %}
 
@@ -39,8 +33,9 @@
 <!-- Hero -->
 <div class="hero">
   <div class="container">
+    <img src="{{ url_for('static', filename='img/peso_seal.png') }}" alt="PESO City of San Jose del Monte seal" class="hero-seal" />
     <div class="mb-3">
-      <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:.3rem .9rem;font-size:.8rem;font-weight:600;letter-spacing:.06em;">
+      <span style="background:rgba(255,255,255,.18);color:#fff;border-radius:20px;padding:.3rem .9rem;font-size:.8rem;font-weight:600;letter-spacing:.06em;">
         PESO City of San Jose del Monte, Bulacan
       </span>
     </div>
@@ -50,89 +45,9 @@
       <a href="{{ url_for('login') }}" class="btn fw-bold hero-signin">
         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
       </a>
-      <a href="{{ url_for('register') }}" class="btn btn-outline-light fw-semibold hero-create">
+      <a href="{{ url_for('register') }}" class="btn fw-semibold hero-create">
         <i class="bi bi-person-plus me-2"></i>Create New Account
       </a>
-    </div>
-  </div>
-</div>
-
-<!-- How it works -->
-<div class="feature-section">
-  <div class="container">
-    <div class="text-center mb-4">
-      <h2 class="fw-bold" style="font-size:1.5rem;">How It Works</h2>
-      <p class="text-muted">For jobseekers, in three steps.</p>
-    </div>
-    <div class="row g-3 mb-5">
-      <div class="col-md-4">
-        <div class="feature-card accent-blue">
-          <div class="feature-icon" style="background:#eff6ff;">
-            <i class="bi bi-person-plus-fill text-primary"></i>
-          </div>
-          <h6 class="fw-bold">1. Register Online</h6>
-          <p class="text-muted small mb-0">Create your profile from home or an internet cafe. No need to travel to the PESO office just to sign up.</p>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="feature-card accent-blue">
-          <div class="feature-icon" style="background:#f0fdf4;">
-            <i class="bi bi-stars text-success"></i>
-          </div>
-          <h6 class="fw-bold">2. Get Matched</h6>
-          <p class="text-muted small mb-0">Our system analyzes your skills, education, and experience to recommend the job categories that fit you best.</p>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="feature-card accent-blue">
-          <div class="feature-icon" style="background:#fff7ed;">
-            <i class="bi bi-send-fill text-warning"></i>
-          </div>
-          <h6 class="fw-bold">3. Get Your Referral</h6>
-          <p class="text-muted small mb-0">Apply to a matching vacancy and your referral slip is generated instantly. Bring it directly to the employer to start the hiring process.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Who it's for -->
-    <div class="row g-4">
-      <div class="col-md-6">
-        <div class="step-row accent-blue">
-          <div class="d-flex align-items-center gap-3 mb-3">
-            <div class="feature-icon mb-0" style="background:#eff6ff;flex-shrink:0;">
-              <i class="bi bi-person-fill text-primary"></i>
-            </div>
-            <div>
-              <h5 class="fw-bold mb-0">For Jobseekers</h5>
-              <p class="text-muted small mb-0">Looking for work in CSJDM?</p>
-            </div>
-          </div>
-          <ul class="text-muted small mb-0 ps-3">
-            <li>Register and build your profile</li>
-            <li>See which job categories fit you best</li>
-            <li>Browse active vacancies</li>
-            <li>Apply and track your referrals online</li>
-          </ul>
-        </div>
-      </div>
-      <div class="col-md-6">
-        <div class="step-row accent-blue">
-          <div class="d-flex align-items-center gap-3 mb-3">
-            <div class="feature-icon mb-0" style="background:#f0fdf4;flex-shrink:0;">
-              <i class="bi bi-building text-success"></i>
-            </div>
-            <div>
-              <h5 class="fw-bold mb-0">For Employers</h5>
-              <p class="text-muted small mb-0">Hiring workers in CSJDM?</p>
-            </div>
-          </div>
-          <ul class="text-muted small mb-0 ps-3">
-            <li>Register your company with PESO</li>
-            <li>Post job vacancies directly</li>
-            <li>Receive applicants matched to your vacancies</li>
-          </ul>
-        </div>
-      </div>
     </div>
   </div>
 </div>
