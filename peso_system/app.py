@@ -1354,6 +1354,9 @@ def jobseeker_profile():
             if title or r['rating'] or r['date']:
                 eligibils.append({'title': title, 'rating': r['rating'], 'date': r['date']})
         work_hist   = rows('we',   ['company', 'address', 'position', 'from_m', 'from_y', 'to_m', 'to_y', 'current', 'months', 'status'])
+        # A fresh graduate has no work history: drop anything submitted for it.
+        if f.get('employment_status') != 'Employed' and f.get('unemployed_reason') == 'New entrant/fresh graduate':
+            work_hist = []
         for w in work_hist:
             w['months'] = _work_months(w)
 

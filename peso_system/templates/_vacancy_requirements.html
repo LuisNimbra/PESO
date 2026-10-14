@@ -50,6 +50,7 @@
     <label class="form-label fw-semibold">Minimum Work Experience (months)</label>
     <input type="number" name="req_experience_months" class="form-control" min="0" max="600" placeholder="e.g. 6"
            value="{{ vacancy.req_experience_months if vacancy and vacancy.req_experience_months else '' }}" />
+    <div class="form-text">Leave blank or 0 if fresh graduates are welcome.</div>
   </div>
 </div>
 <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>These requirements are automatically checked against each applicant's profile.</p>

@@ -1,9 +1,30 @@
 ﻿{% extends 'base_jobseeker.html' %}
 {% block title %}My Recommendations{% endblock %}
 
+{% block head %}
+<style>
+.reco-title { letter-spacing: -.01em; color: #0f172a; }
+.reco-intro { border: 1px solid #e8edf4 !important; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.06) !important; position: relative; overflow: hidden; }
+.reco-intro::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--peso-brand-grad); }
+.reco-intro .card-body { padding: 1.75rem 2rem !important; }
+.reco-intro .fw-semibold.mb-3 { font-size: 1.05rem; color: #0f172a; }
+.reco-intro ol { list-style: none; counter-reset: step; padding-left: 0 !important; font-size: .92rem !important; color: #475569 !important; }
+.reco-intro ol li { counter-increment: step; position: relative; padding: .15rem 0 .15rem 2.5rem; margin-bottom: .75rem !important; line-height: 1.55; }
+.reco-intro ol li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--peso-brand-grad); color: #fff; font-weight: 700; font-size: .8rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(37,99,235,.3); }
+.reco-intro ol strong { color: #0f172a; }
+.reco-intro .reco-reqs { background: #f4f7fc; border: 1px solid #e3eaf5; border-radius: 10px; padding: 1rem 1.25rem; font-size: .9rem !important; }
+.reco-intro .reco-reqs ul { list-style: none; padding-left: 0 !important; margin-top: .5rem; }
+.reco-intro .reco-reqs li { position: relative; padding-left: 1.6rem; margin-bottom: .35rem; color: #475569; }
+.reco-intro .reco-reqs li::before { content: "\F26A"; font-family: "bootstrap-icons"; position: absolute; left: 0; color: #16a34a; }
+.reco-intro .reco-reqs strong { color: #0f172a; }
+.reco-intro .btn-primary { background: var(--peso-brand-grad); border: 1px solid #1e3a5f; border-radius: 10px; padding: .65rem 1.5rem; box-shadow: 0 6px 16px rgba(30,58,95,.28); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.reco-intro .btn-primary:hover { background: #1e3a5f; transform: translateY(-1px); box-shadow: 0 10px 22px rgba(30,58,95,.35); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="mb-4">
-  <h4 class="fw-bold mb-0">My Job Recommendations</h4>
+  <h4 class="fw-bold mb-0 reco-title">My Job Recommendations</h4>
   <p class="text-muted small">Generate job recommendations from your profile, pick a job you're interested in, and click Apply to get your referral slip instantly.</p>
 </div>
 
@@ -21,7 +42,7 @@
 <div class="alert alert-danger">The ML recommendation engine is currently unavailable.</div>
 {% elif not generated %}
 
-<div class="card shadow-sm border-0 mb-4" style="border-radius:12px;">
+<div class="card reco-intro mb-4" style="border-radius:12px;">
   <div class="card-body p-4">
     <div class="fw-semibold mb-3">How it works</div>
     <ol class="small text-muted ps-3 mb-4">
@@ -29,7 +50,7 @@
       <li class="mb-1"><strong>Choose</strong> a job you're interested in from the ranked categories.</li>
       <li><strong>Apply:</strong> click Apply and your referral slip is generated immediately.</li>
     </ol>
-    <div class="small text-muted mb-3">
+    <div class="small text-muted mb-4 reco-reqs">
       <div class="fw-semibold text-body mb-1">Make sure these fields are filled in your <a href="{{ url_for('jobseeker_profile') }}" class="fw-semibold">Profile</a> to get recommendations:</div>
       <ul class="ps-3 mb-0">
         <li><strong>Educational Background</strong> (your highest education level)</li>

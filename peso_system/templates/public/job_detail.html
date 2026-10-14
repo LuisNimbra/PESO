@@ -49,10 +49,12 @@
         {% elif v.req_age_min %}<li class="mb-1"><i class="bi bi-check2 text-success me-2"></i><strong>Age:</strong> {{ v.req_age_min }}+ years old</li>
         {% elif v.req_age_max %}<li class="mb-1"><i class="bi bi-check2 text-success me-2"></i><strong>Age:</strong> up to {{ v.req_age_max }} years old</li>{% endif %}
         {% if v.req_education %}<li class="mb-1"><i class="bi bi-check2 text-success me-2"></i><strong>Education:</strong> {{ v.req_education }} or higher</li>{% endif %}
-        {% if v.req_experience_months %}<li class="mb-1"><i class="bi bi-check2 text-success me-2"></i><strong>Experience:</strong> at least {{ v.req_experience_months }} months</li>{% endif %}
+        {% if v.req_experience_months %}<li class="mb-1"><i class="bi bi-check2 text-success me-2"></i><strong>Experience:</strong> at least {{ v.req_experience_months }} months</li>
+        {% else %}<li class="mb-1"><i class="bi bi-check2 text-success me-2"></i><strong>Experience:</strong> No experience needed, fresh graduates welcome</li>{% endif %}
       </ul>
       {% else %}
-      <p class="small text-muted">No specific requirements listed.</p>
+      <p class="small text-muted mb-1"><i class="bi bi-check2 text-success me-2"></i><strong>Experience:</strong> No experience needed, fresh graduates welcome</p>
+      <p class="small text-muted">No other specific requirements listed.</p>
       {% endif %}
       {% if v.req_documents %}
       <p class="small mb-4"><i class="bi bi-file-earmark-text me-1 text-muted"></i><strong>Documents to bring:</strong> {{ v.req_documents }}</p>
