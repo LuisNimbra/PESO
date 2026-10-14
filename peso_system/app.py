@@ -971,7 +971,9 @@ def public_job_detail(vid):
         back_url, back_label = url_for('jobseeker_jobs'), 'Back to jobs'
     else:
         back_url, back_label = url_for('public_jobs'), 'Back to all jobs'
-    return render_template('public/job_detail.html', v=v, is_jobseeker=is_jobseeker,
+    # Logged-in jobseekers stay inside their portal layout instead of the public one
+    layout = 'base_jobseeker.html' if is_jobseeker else 'base_public.html'
+    return render_template('public/job_detail.html', v=v, is_jobseeker=is_jobseeker, layout=layout,
                            logged_in=('user_id' in session), applied=applied, profile_ok=profile_ok,
                            back_url=back_url, back_label=back_label)
 

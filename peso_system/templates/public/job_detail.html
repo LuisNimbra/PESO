@@ -1,4 +1,4 @@
-{% extends 'base_public.html' %}
+{% extends layout|default('base_public.html') %}
 {% block title %}{{ v.job_title }}{% endblock %}
 
 {% block content %}

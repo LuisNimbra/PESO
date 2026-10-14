@@ -5,7 +5,7 @@
 {% elif has_active_referral %}
 <button type="button" class="btn btn-secondary btn-sm py-0 px-2 flex-shrink-0" style="font-size:.72rem;"
         disabled title="Withdraw your current referral to apply to another job">
-  <i class="bi bi-lock-fill me-1"></i>Apply
+  <i class="bi bi-lock-fill me-1"></i>Referral Active
 </button>
 {% else %}
 <a href="{{ url_for('jobseeker_apply_confirm', vid=vac.id) }}"
