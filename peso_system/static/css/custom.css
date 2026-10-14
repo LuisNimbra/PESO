@@ -683,3 +683,28 @@ body { overflow-x: hidden; }
 /* Login Sign In: same brand gradient as the home page Sign In */
 .btn.login-signin { background: var(--peso-brand-grad); border: 2px solid #1e3a5f; color: #fff; box-shadow: 0 6px 16px rgba(30,58,95,.3); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
 .btn.login-signin:hover, .btn.login-signin:focus { background: #1e3a5f; border-color: #162d4a; color: #fff; transform: translateY(-2px); box-shadow: 0 10px 22px rgba(30,58,95,.4); }
+
+/* Public nav links: flat pill by default, sunken/pressed when active */
+.public-nav .nav-text-link {
+  padding: .4rem 1rem; border-radius: 999px; background: transparent;
+  transition: all .2s ease-in-out;
+}
+.public-nav .nav-text-link:hover { background: rgba(255,255,255,.12); opacity: 1; }
+.public-nav .nav-text-link.active,
+.public-nav .nav-text-link:active {
+  background: rgba(255,255,255,.1);
+  box-shadow: inset 0 4px 6px rgba(0,0,0,.20), inset 0 1px 2px rgba(0,0,0,.15);
+  transform: translateY(1px);
+}
+
+/* View Details button (job cards) */
+.btn-view-details {
+  background: var(--peso-brand-grad); color: #fff; border: 1px solid #1e3a5f;
+  border-radius: 8px; padding: .5rem 1rem; font-size: .85rem; font-weight: 600;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.btn-view-details:hover, .btn-view-details:focus {
+  background: #1e3a5f; color: #fff; transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(30,58,95,.3);
+}
+.btn-view-details:active { transform: none; box-shadow: none; }

@@ -54,9 +54,9 @@
   </button>
   <div class="public-nav-menu" id="publicNavLinks">
     <div class="public-nav-center">
-      <a href="{{ url_for('index') }}" class="nav-text-link">Home</a>
-      <a href="{{ url_for('about') }}" class="nav-text-link">About</a>
-      <a href="{{ url_for('public_jobs') }}" class="nav-text-link">Browse Jobs</a>
+      <a href="{{ url_for('index') }}" class="nav-text-link{% if request.endpoint == 'index' %} active{% endif %}"{% if request.endpoint == 'index' %} aria-current="page"{% endif %}>Home</a>
+      <a href="{{ url_for('about') }}" class="nav-text-link{% if request.endpoint == 'about' %} active{% endif %}"{% if request.endpoint == 'about' %} aria-current="page"{% endif %}>About</a>
+      <a href="{{ url_for('public_jobs') }}" class="nav-text-link{% if request.endpoint in ('public_jobs', 'public_job_detail') %} active{% endif %}"{% if request.endpoint in ('public_jobs', 'public_job_detail') %} aria-current="page"{% endif %}>Browse Jobs</a>
     </div>
     <div class="public-nav-right">
       {% block nav_signin %}
