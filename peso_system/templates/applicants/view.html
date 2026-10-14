@@ -15,7 +15,7 @@
 
 <div class="card shadow-sm mb-3">
   <div class="card-header fw-semibold d-flex align-items-center justify-content-between flex-wrap gap-2">
-    <span><i class="bi bi-person-badge me-2 text-primary"></i>{{ ap.last_name }}, {{ ap.first_name }}{% if ap.middle_name %} {{ ap.middle_name }}{% endif %}{% if ap.suffix %} {{ ap.suffix }}{% endif %}</span>
+    <span><i class="bi bi-person-badge me-2 text-primary"></i>{{ ap.first_name }}{% if ap.middle_name and ap.middle_name != '-' %} {{ ap.middle_name }}{% endif %} {{ ap.last_name }}{% if ap.suffix %} {{ ap.suffix }}{% endif %}</span>
     <span class="d-flex gap-1 flex-wrap">
       {% if not ap.skills or not ap.educ_level or not ap.preferred_position %}
       <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill me-1"></i>Incomplete</span>

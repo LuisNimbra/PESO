@@ -116,3 +116,52 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-mask]'), setup);
   });
 })();
+
+
+/* Double-submit guard.  Once a valid POST form is on its way, its buttons are disabled and show a spinner,
+   and a second submit (double-click, Enter + click, two quick taps) is swallowed. Everything is restored if the
+   browser comes back from history (bfcache) or the server has not answered after 30 s.
+   Opt out with data-no-lock on the <form>. GET forms (searches) are left alone. */
+(function () {
+  var RESTORE_AFTER_MS = 30000;
+
+  function buttons(form) {
+    return Array.prototype.slice.call(form.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]'));
+  }
+  function unlock(form) {
+    if (!form || form.dataset.locked !== '1') return;
+    delete form.dataset.locked;
+    buttons(form).forEach(function (b) {
+      if (b.dataset.origHtml !== undefined) { b.innerHTML = b.dataset.origHtml; delete b.dataset.origHtml; }
+      b.disabled = false;
+      b.removeAttribute('aria-busy');
+    });
+  }
+  function lock(form) {
+    form.dataset.locked = '1';
+    buttons(form).forEach(function (b) {
+      if (b.tagName === 'BUTTON' && b.dataset.origHtml === undefined) {
+        b.dataset.origHtml = b.innerHTML;
+        b.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + b.textContent.trim();
+      }
+      b.disabled = true;
+      b.setAttribute('aria-busy', 'true');
+    });
+    setTimeout(function () { unlock(form); }, RESTORE_AFTER_MS);
+  }
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form || form.tagName !== 'FORM') return;
+    if (form.hasAttribute('data-no-lock')) return;
+    if ((form.method || 'get').toLowerCase() !== 'post') return;
+    if (form.target && form.target !== '_self') return;           // opens elsewhere: page stays interactive
+    if (form.dataset.locked === '1') { e.preventDefault(); return; }     // second submit while the first is in flight
+    // Run after the validation guard and any inline onsubmit/confirm() had their say
+    setTimeout(function () { if (!e.defaultPrevented) lock(form); }, 0);
+  });
+
+  window.addEventListener('pageshow', function () {
+    Array.prototype.forEach.call(document.querySelectorAll('form[data-locked="1"]'), unlock);
+  });
+})();

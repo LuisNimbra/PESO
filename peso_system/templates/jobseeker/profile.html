@@ -5,7 +5,12 @@
 <style>
 .skill-chip { cursor:pointer; padding:3px 10px; border-radius:12px; font-size:.72rem; font-weight:500;
   border:1px solid #cbd5e1; color:#475569; background:#f8fafc; user-select:none; white-space:nowrap; display:inline-block; }
+.skill-chip.active { background:#2563eb; border-color:#2563eb; color:#fff; }
 .skill-chip:hover { background:#eff6ff; border-color:#93c5fd; color:#2563eb; }
+.save-bar { position:sticky; bottom:0; z-index:20; display:flex; justify-content:space-between; align-items:center; gap:12px;
+  background:#fff; border-top:1px solid #e2e8f0; box-shadow:0 -4px 16px rgba(15,23,42,.06); padding:10px 16px; border-radius:12px 12px 0 0; }
+.save-bar.dirty #save-state { color:#b45309 !important; }
+.empty-hint { border:1px dashed #cbd5e1; border-radius:10px; padding:14px; text-align:center; color:#64748b; font-size:.85rem; }
 .sec-head { font-size:.75rem; letter-spacing:.07em; text-transform:uppercase; color:var(--peso-muted); }
 .repeat-row { position:relative; }
 .avatar { width:110px; height:110px; border-radius:50%; overflow:hidden; display:flex; align-items:center;
@@ -114,6 +119,16 @@
   <p class="text-muted small">Based on the PhilJobNet applicant registration. Keep it updated for accurate job recommendations.</p>
 </div>
 
+<div class="card shadow-sm border-0 mb-3" style="border-radius:12px;">
+  <div class="card-body p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="fw-semibold">Profile <span id="pc-pct">0</span>% complete</span>
+      <span class="small text-muted" id="pc-next"></span>
+    </div>
+    <div class="progress" style="height:8px;"><div class="progress-bar bg-success" id="pc-bar" style="width:0%"></div></div>
+  </div>
+</div>
+
 {% if not ap.educ_level or not ap.preferred_position or not ap.skills %}
 <div class="alert alert-warning d-flex gap-2 mb-4">
   <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
@@ -153,7 +168,7 @@
         </div>
       </div>
       <div class="text-center text-sm-start">
-        <p class="fw-semibold sec-head mb-1">Profile Photo</p>
+        <p class="fw-semibold sec-head mb-1">Profile Photo <span class="text-muted fw-normal text-lowercase">(optional)</span></p>
         <input type="file" name="photo" id="photo-input" accept="image/jpeg,image/png" hidden />
         <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('photo-input').click()">
           <i class="bi bi-camera me-1"></i>Upload Photo
@@ -188,12 +203,12 @@
           </select>
         </div>
         <div class="col-sm-4">
-          <label class="form-label fw-semibold small">Date of birth</label>
-          <input type="text" name="birthdate" id="birthdate" class="form-control" placeholder="mm/dd/yyyy" autocomplete="off" value="{{ ap.birthdate or '' }}" />
+          <label class="form-label fw-semibold small">Date of birth <span class="text-danger">*</span></label>
+          <input type="text" name="birthdate" id="birthdate" class="form-control" required placeholder="mm/dd/yyyy" autocomplete="off" value="{{ ap.birthdate or '' }}" />
         </div>
         <div class="col-sm-4">
-          <label class="form-label fw-semibold small">Sex</label>
-          <select name="sex" class="form-select">
+          <label class="form-label fw-semibold small">Sex <span class="text-danger">*</span></label>
+          <select name="sex" class="form-select" required>
             <option value="">-- Select --</option>
             <option value="Male" {% if ap.sex == 'Male' %}selected{% endif %}>Male</option>
             <option value="Female" {% if ap.sex == 'Female' %}selected{% endif %}>Female</option>
@@ -215,50 +230,50 @@
             {% for c in civil_statuses %}<option value="{{ c }}" {% if ap.civil_status == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-12">
-          <div class="row g-3" id="loc-box" data-location data-psgc-base="{{ url_for('static', filename='data/psgc/') }}">
-            <div class="col-sm-4">
-              <label class="form-label fw-semibold small">Province</label>
-              <input type="text" name="province" data-loc="province" class="form-control" maxlength="60" autocomplete="off"
-                     placeholder="Type to search" value="{{ ap.province or 'Bulacan' }}" />
-            </div>
-            <div class="col-sm-4">
-              <label class="form-label fw-semibold small">City / Municipality</label>
-              <input type="text" name="city" data-loc="city" class="form-control" maxlength="60" autocomplete="off"
-                     placeholder="Select province first" value="{{ ap.city or 'City of San Jose del Monte' }}" />
-            </div>
-            <div class="col-sm-4">
-              <label class="form-label fw-semibold small">Barangay</label>
-              <input type="text" name="barangay" id="barangay-input" data-loc="barangay" class="form-control" maxlength="60" autocomplete="off"
-                     placeholder="Select city / municipality first" value="{{ ap.barangay or '' }}" />
-            </div>
-          </div>
-        </div>
-        <div class="col-12">
-          <label class="form-label fw-semibold small">Present address (House no., Street, Village)</label>
-          <input type="text" name="address_line" class="form-control" maxlength="150" value="{{ ap.address_line or '' }}" />
-        </div>
-        <input type="hidden" name="district" value="{{ ap.district or '' }}" id="district-input" />
-        <div class="col-sm-3">
+        <div class="col-sm-4">
           <label class="form-label fw-semibold small">Height (cm)</label>
           <input type="text" name="height_cm" class="form-control" maxlength="5" inputmode="numeric" value="{{ ap.height_cm or '' }}" />
         </div>
-        <div class="col-sm-3">
+        <div class="col-sm-4">
           <label class="form-label fw-semibold small">Religion</label>
           <select name="religion" class="form-select">
             <option value="">-- Select --</option>
             {% for r in religions %}<option value="{{ r }}" {% if ap.religion == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-sm-3">
+        <div class="col-12">
+          <div class="row g-3" id="loc-box" data-location data-psgc-base="{{ url_for('static', filename='data/psgc/') }}">
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold small">Province <span class="text-danger">*</span></label>
+              <input type="text" name="province" data-loc="province" class="form-control" required maxlength="60" autocomplete="off"
+                     placeholder="Type to search" value="{{ ap.province or 'Bulacan' }}" />
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold small">City / Municipality <span class="text-danger">*</span></label>
+              <input type="text" name="city" data-loc="city" class="form-control" required maxlength="60" autocomplete="off"
+                     placeholder="Select province first" value="{{ ap.city or 'City of San Jose del Monte' }}" />
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold small">Barangay <span class="text-danger">*</span></label>
+              <input type="text" name="barangay" id="barangay-input" data-loc="barangay" class="form-control" required maxlength="60" autocomplete="off"
+                     placeholder="Select city / municipality first" value="{{ ap.barangay or '' }}" />
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold small">Present address (House no., Street, Village) <span class="text-danger">*</span></label>
+          <input type="text" name="address_line" class="form-control" required maxlength="150" value="{{ ap.address_line or '' }}" />
+        </div>
+        <input type="hidden" name="district" value="{{ ap.district or '' }}" id="district-input" />
+        <div class="col-sm-4">
           <label class="form-label fw-semibold small">TIN</label>
           <input type="text" name="tin" data-mask="tin" class="form-control" value="{{ ap.tin or '' }}" />
         </div>
-        <div class="col-sm-3">
+        <div class="col-sm-4">
           <label class="form-label fw-semibold small">Cellphone no. <span class="text-danger">*</span></label>
           <input type="text" name="contact_number" data-mask="mobile" class="form-control" required value="{{ ap.contact_number or '' }}" />
         </div>
-        <div class="col-sm-3">
+        <div class="col-sm-4">
           <label class="form-label fw-semibold small">Landline no.</label>
           <input type="text" name="landline" class="form-control" maxlength="12" inputmode="numeric" value="{{ ap.landline or '' }}" />
         </div>
@@ -332,8 +347,9 @@
         <div class="form-check"><input class="form-check-input" type="radio" name="employment_status" value="Employed" id="es_emp" onchange="empToggle()" {% if ap.employment_status == 'Employed' %}checked{% endif %} /><label class="form-check-label small" for="es_emp">Employed</label></div>
         <div class="form-check"><input class="form-check-input" type="radio" name="employment_status" value="Unemployed" id="es_unemp" onchange="empToggle()" {% if ap.employment_status != 'Employed' %}checked{% endif %} /><label class="form-check-label small" for="es_unemp">Unemployed</label></div>
       </div>
-      <div id="employed-fields" class="row g-3">
-        <div class="col-sm-6">
+      <div class="row g-3">
+      <div id="employed-fields" class="col-sm-6">
+        <div>
           <label class="form-label fw-semibold small">Type</label>
           <select name="employed_type" class="form-select">
             <option value="">-- Select --</option>
@@ -341,8 +357,8 @@
           </select>
         </div>
       </div>
-      <div id="unemployed-fields" class="row g-3">
-        <div class="col-sm-6">
+      <div id="unemployed-fields" class="col-sm-6">
+        <div>
           <label class="form-label fw-semibold small">Reason</label>
           <select name="unemployed_reason" id="unemployed-reason" class="form-select" onchange="weToggle()">
             <option value="">-- Select --</option>
@@ -350,7 +366,6 @@
           </select>
         </div>
       </div>
-      <div class="row g-3 mt-0">
         <div class="col-sm-6">
           <label class="form-label fw-semibold small">How long looking for work? (months)</label>
           <input type="number" name="job_search_months" class="form-control" min="0" max="600" value="{{ ap.job_search_months if ap.job_search_months is not none else '' }}" />
@@ -382,11 +397,11 @@
         </div>
         <div class="col-sm-4" id="wp-local-box">
           <label class="form-label fw-semibold small">Preferred Work Location (Local)</label>
-          <input type="text" name="pref_work_local" class="form-control" maxlength="80" value="{{ ap.pref_work_local or '' }}" placeholder="City / Province" />
+          <input type="text" name="pref_work_local" id="pref-work-local" class="form-control" maxlength="80" autocomplete="off" value="{{ ap.pref_work_local or '' }}" placeholder="City, Province" />
         </div>
         <div class="col-sm-4" id="wp-ovs-box">
           <label class="form-label fw-semibold small">Preferred Work Location (Overseas)</label>
-          <input type="text" name="pref_work_overseas" class="form-control" maxlength="60" value="{{ ap.pref_work_overseas or '' }}" placeholder="Country" />
+          <input type="text" name="pref_work_overseas" id="pref-work-overseas" class="form-control" maxlength="60" autocomplete="off" value="{{ ap.pref_work_overseas or '' }}" placeholder="Country" />
         </div>
       </div>
     </div>
@@ -504,8 +519,8 @@
     <div class="card-body p-3">
       <p class="fw-semibold sec-head mb-3">10 · Skills</p>
       <label class="form-label fw-semibold small">Skills / Competencies <span class="text-danger">*</span> <span class="text-muted fw-normal" style="font-size:.7rem;">(up to 5; used for recommendations, click chips to add)</span></label>
-      <textarea name="skills" id="skills-input" rows="2" maxlength="255" class="form-control mb-2 {% if not ap.skills %}border-danger{% endif %}" placeholder="e.g. Customer Service, Cashiering, Computer Literacy">{{ ap.skills or '' }}</textarea>
-      <div class="d-flex flex-wrap gap-1 mb-3">{% for skill in skills_list %}<span class="skill-chip" onclick="addChip('skills-input','{{ skill }}')">{{ skill }}</span>{% endfor %}</div>
+      <textarea name="skills" id="skills-input" rows="2" maxlength="255" class="form-control mb-2 {% if not ap.skills %}border-danger{% endif %}" placeholder="e.g. Customer Service, Cashiering, Computer Literacy">{{ (ap.skills or '').split(',') | map('trim') | reject('equalto','') | unique | join(', ') }}</textarea>
+      <div class="d-flex flex-wrap gap-1 mb-3">{% for skill in skills_list %}<span class="skill-chip" data-skill="{{ skill }}" onclick="addChip('skills-input','{{ skill }}')">{{ skill }}</span>{% endfor %}</div>
 
       <label class="form-label fw-semibold small d-block">Other Skills Acquired Without Formal Training <span class="text-muted fw-normal" style="font-size:.7rem;">(up to 5)</span></label>
       <div class="row g-1">
@@ -537,7 +552,10 @@
     </div>
   </div>
 
-  <button type="submit" class="btn btn-primary fw-semibold mb-4"><i class="bi bi-save me-1"></i>Save Profile</button>
+  <div class="save-bar">
+    <span class="small text-muted" id="save-state"><i class="bi bi-check-circle me-1"></i>All changes saved</span>
+    <button type="submit" class="btn btn-primary fw-semibold"><i class="bi bi-save me-1"></i>Save Profile</button>
+  </div>
 </form>
 
 <!-- Row templates for repeatable sections -->
@@ -561,6 +579,72 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function () {
+  var form = document.querySelector('form[action*="profile"]');
+  if (!form) return;
+  [['trn-rows', 'No training added yet.'], ['elig-rows', 'No eligibility or license added yet.'], ['we-rows', 'No work experience added yet.']].forEach(function (c) {
+    var box = document.getElementById(c[0]); if (!box) return;
+    var hint = document.createElement('div'); hint.className = 'empty-hint'; hint.textContent = c[1];
+    box.parentNode.insertBefore(hint, box.nextSibling);
+    function upd() { hint.style.display = box.children.length ? 'none' : ''; }
+    new MutationObserver(upd).observe(box, { childList: true }); upd();
+  });
+  function val(n) { var e = form.querySelector('[name="' + n + '"]'); return e && e.value.trim(); }
+  var checks = [
+    ['Name', function () { return val('last_name') && val('first_name'); }],
+    ['Date of birth', function () { return val('birthdate'); }],
+    ['Sex', function () { return val('sex'); }],
+    ['Cellphone', function () { return val('contact_number'); }],
+    ['Province, city and barangay', function () { return val('province') && val('city') && val('barangay'); }],
+    ['Present address', function () { return val('address_line'); }],
+    ['Preferred occupation', function () { return val('preferred_position'); }],
+    ['Education', function () { return Array.prototype.some.call(form.querySelectorAll('[name="edu_level[]"]'), function (e) { return e.value; }); }],
+    ['Skills', function () { return val('skills'); }],
+    ['Certification', function () { var c = form.querySelector('[name="certify"]'); return c && c.checked; }]
+  ];
+  function progress() {
+    var done = 0, next = '';
+    checks.forEach(function (c) { if (c[1]()) done++; else if (!next) next = c[0]; });
+    var pct = Math.round(done / checks.length * 100);
+    document.getElementById('pc-pct').textContent = pct;
+    document.getElementById('pc-bar').style.width = pct + '%';
+    document.getElementById('pc-next').textContent = next ? 'Next: ' + next : 'All set!';
+  }
+  var bar = document.querySelector('.save-bar'), st = document.getElementById('save-state');
+  function dirty() { bar.classList.add('dirty'); st.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Unsaved changes'; }
+  ['input', 'change'].forEach(function (ev) { form.addEventListener(ev, function (e) { if (e.isTrusted) dirty(); progress(); }); });
+  window.addEventListener('load', function () { setTimeout(progress, 600); });
+  progress();
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var input = document.getElementById('pref-work-local'), places = [];
+  if (!input || !window.PesoAC) return;
+  fetch('/api/places').then(function (r) { return r.json(); }).then(function (d) { places = d || []; }).catch(function () {});
+  window.PesoAC.attach(input, function () {
+    var q = input.value.trim().toLowerCase();
+    if (!q) return places.slice(0, 40);
+    var starts = [], contains = [];
+    for (var i = 0; i < places.length; i++) {
+      var p = places[i], k = p.toLowerCase().indexOf(q);
+      if (k === 0) starts.push(p); else if (k > 0) contains.push(p);
+      if (starts.length >= 40) break;
+    }
+    return starts.concat(contains).slice(0, 40);
+  });
+  var ovs = document.getElementById('pref-work-overseas'), countries = [];
+  if (ovs) {
+    fetch('{{ url_for('static', filename='data/countries.json') }}').then(function (r) { return r.json(); }).then(function (d) { countries = d || []; }).catch(function () {});
+    window.PesoAC.attach(ovs, function () {
+      var q = ovs.value.trim().toLowerCase();
+      if (!q) return countries.slice(0, 20);                       // common OFW destinations first
+      return countries.filter(function (c) { return c.toLowerCase().indexOf(q) !== -1; }).slice(0, 40);
+    });
+  }
+});
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
@@ -611,8 +695,32 @@
     var ta = document.getElementById(targetId);
     var parts = ta.value.trim() ? ta.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [];
     if (targetId === 'skills-input' && parts.length >= SKILL_LIMIT) return;
-    if (parts.indexOf(text) === -1) { parts.push(text); ta.value = parts.join(', '); }
+    var at = parts.indexOf(text);
+    if (at === -1) parts.push(text); else if (targetId === 'skills-input') parts.splice(at, 1);   // clicking a selected chip removes it
+    ta.value = parts.join(', ');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
+  function syncSkillChips() {
+    var ta = document.getElementById('skills-input'); if (!ta) return;
+    var sel = ta.value.split(',').map(function (x) { return x.trim().toLowerCase(); });
+    document.querySelectorAll('.skill-chip[data-skill]').forEach(function (c) {
+      c.classList.toggle('active', sel.indexOf(c.dataset.skill.toLowerCase()) !== -1);
+    });
+  }
+  function dedupeSkills() {
+    var ta = document.getElementById('skills-input'); if (!ta) return;
+    var seen = {}, out = [];
+    ta.value.split(',').forEach(function (x) { x = x.trim(); var k = x.toLowerCase(); if (x && !seen[k]) { seen[k] = 1; out.push(x); } });
+    ta.value = out.slice(0, SKILL_LIMIT).join(', ');
+  }
+  (function () {
+    var ta = document.getElementById('skills-input');
+    if (!ta) return;
+    ta.addEventListener('input', syncSkillChips);
+    ta.addEventListener('blur', function () { dedupeSkills(); syncSkillChips(); });
+    ta.form.addEventListener('submit', dedupeSkills);
+    dedupeSkills(); syncSkillChips();
+  })();
   function limitOtherSkills() {
     var boxes = document.querySelectorAll('input[name="other_skills"]');
     var checked = 0;

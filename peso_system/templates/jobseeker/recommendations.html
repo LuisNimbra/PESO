@@ -95,17 +95,9 @@
 
 {% if not ap %}
 <div class="alert alert-warning">Profile not found. Contact PESO admin.</div>
-{% elif not profile_ok %}
-<div class="alert alert-warning d-flex gap-2">
-  <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-  <div>
-    Your profile is incomplete.
-    <a href="{{ url_for('jobseeker_profile') }}" class="fw-semibold">Complete it here</a> to see recommendations.
-  </div>
-</div>
-{% elif not pipeline_loaded %}
+{% elif identity_ok and profile_ok and not pipeline_loaded %}
 <div class="alert alert-danger">The ML recommendation engine is currently unavailable.</div>
-{% elif not generated %}
+{% elif not (identity_ok and profile_ok) or not generated %}
 
 <div class="card reco-intro mb-4" style="border-radius:12px;">
   <div class="card-body p-4">
@@ -118,18 +110,24 @@
     <div class="small text-muted mb-4 reco-reqs">
       <div class="fw-semibold text-body mb-1">Make sure these fields are filled in your <a href="{{ url_for('jobseeker_profile') }}" class="fw-semibold">Profile</a> to get recommendations:</div>
       <ul class="ps-3 mb-0">
+        <li><strong>Basic Details</strong> (name, birthday, mobile number, address, and sex)</li>
         <li><strong>Educational Background</strong> (your highest education level)</li>
         <li><strong>Preferred Occupation</strong></li>
         <li><strong>Skills</strong></li>
         <li><strong>Work Experience</strong> (optional)</li>
       </ul>
     </div>
+    {% if identity_ok and profile_ok %}
     <form method="GET" action="{{ url_for('jobseeker_recommendations') }}">
       <input type="hidden" name="generate" value="1" />
       <button type="submit" class="btn btn-primary fw-semibold">
         <i class="bi bi-stars me-1"></i>Generate Recommendations
       </button>
     </form>
+    {% else %}
+    <div class="small mb-3" style="color:#92400e;"><i class="bi bi-info-circle me-1"></i>Please complete your profile details to generate your job recommendations.</div>
+    <a href="{{ url_for('jobseeker_profile') }}" class="btn btn-primary fw-semibold"><i class="bi bi-person-lines-fill me-1"></i>Go to My Profile</a>
+    {% endif %}
   </div>
 </div>
 
@@ -152,10 +150,10 @@
   <div class="card-body py-3 px-4">
     <div class="small text-muted fw-semibold mb-2" style="font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;">Profile Used</div>
     <div class="row row-cols-1 row-cols-md-2 g-2 small reco-profile-grid">
-      <div class="col"><i class="bi bi-mortarboard text-secondary me-1"></i>{{ ap.educ_level }}</div>
-      <div class="col"><i class="bi bi-bullseye text-secondary me-1"></i>{{ ap.preferred_position }}</div>
-      <div class="col"><i class="bi bi-tools text-secondary me-1"></i>{{ ap.skills }}</div>
-      <div class="col"><i class="bi bi-briefcase text-secondary me-1"></i>{{ ap.work_experience or 'No experience' }}</div>
+      <div class="col d-flex gap-2"><i class="bi bi-mortarboard text-secondary mt-1"></i><div><div class="text-muted" style="font-size:.7rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Education</div><div>{{ ap.educ_level }}</div></div></div>
+      <div class="col d-flex gap-2"><i class="bi bi-bullseye text-secondary mt-1"></i><div><div class="text-muted" style="font-size:.7rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Preferred Occupation</div><div>{{ ap.preferred_position }}</div></div></div>
+      <div class="col d-flex gap-2"><i class="bi bi-tools text-secondary mt-1"></i><div><div class="text-muted" style="font-size:.7rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Skills</div><div>{{ (ap.skills or '').split(',') | map('trim') | reject('equalto','') | unique | join(', ') }}</div></div></div>
+      <div class="col d-flex gap-2"><i class="bi bi-briefcase text-secondary mt-1"></i><div><div class="text-muted" style="font-size:.7rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Work Experience</div><div>{{ ap.work_experience or 'No experience' }}</div></div></div>
     </div>
   </div>
 </div>
@@ -164,7 +162,7 @@
 {% set empty_cats = [] %}
 {% for item in results %}
   {% if item.vacancies %}
-  <div class="card shadow-sm mb-3 reco-cat {% if item.rank == 1 %}border-success reco-best{% endif %}"
+  <div class="card shadow-sm mb-4 reco-cat {% if item.rank == 1 %}border-success reco-best{% endif %}"
        style="border-radius:12px;{% if item.rank == 1 %}border-width:2px;{% endif %}">
     <div class="card-header bg-transparent border-bottom py-3 px-3">
       <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -176,6 +174,9 @@
         <i class="bi {{ item.icon }} {% if item.rank == 1 %}text-success{% else %}text-muted{% endif %}" style="font-size:1.5rem;"></i>
         <span class="fw-bold" style="font-size:1.4rem;">{{ item.category }}</span>
         <span class="badge bg-primary-subtle text-primary-emphasis" style="font-size:.85rem;">{{ item.vacancies|length }} open</span>
+        {% if item.unscored %}
+        <span class="small text-muted ms-auto">Other categories &middot; not scored by the matching model</span>
+        {% else %}
         <div class="d-flex align-items-center gap-2 ms-auto">
           <div class="progress flex-shrink-0" style="height:10px;width:130px;border-radius:5px;">
             <div class="progress-bar {% if item.suitability_score >= 0.4 %}bg-success{% elif item.suitability_score >= 0.2 %}bg-warning{% else %}bg-danger{% endif %}"
@@ -183,10 +184,11 @@
           </div>
           <span class="fw-bold" style="font-size:1.25rem;min-width:58px;text-align:right;">{{ item.suitability_pct }}</span>
         </div>
+        {% endif %}
       </div>
     </div>
     <div class="card-body p-3">
-      <div class="row g-2">
+      <div class="row g-4 job-grid">
         {% for vac in item.vacancies %}
         {% set v = vac.info %}
         {% set warns = req_warnings(v, ap) %}
@@ -207,27 +209,9 @@
                 {% endif %}
               </div>
 
-              {% set chips = req_summary(v) %}
-              {% if chips %}
-              <div class="mb-2">
-                {% for c in chips %}<span class="badge bg-secondary-subtle text-secondary-emphasis me-1 mb-1 fw-normal" style="font-size:.74rem;">{{ c }}</span>{% endfor %}
-              </div>
-              {% else %}
-              <div class="text-muted mb-2" style="font-size:.8rem;">No specific requirements.</div>
-              {% endif %}
-
-              {% if salary_text(v) %}
-              <div class="fw-semibold text-success mb-1" style="font-size:.82rem;"><i class="bi bi-cash-coin me-1"></i>{{ salary_text(v) }}</div>
-              {% endif %}
-              <div class="text-muted" style="font-size:.8rem;">
-                {% if v.application_deadline %}<i class="bi bi-hourglass-split me-1"></i>Apply until {{ v.application_deadline|friendly_date }}
-                {% else %}<i class="bi bi-hourglass me-1"></i>Open until filled{% endif %}
-              </div>
-              {% if vac.location %}
-              <div class="text-muted mt-1" style="font-size:.8rem;">
-                <i class="bi bi-geo-alt me-1"></i>{{ vac.location }}
-                {% if vac.loc_match %}<span class="badge bg-success-subtle text-success-emphasis ms-1" style="font-size:.7rem;"><i class="bi bi-check-circle-fill me-1"></i>Preferred location</span>{% endif %}
-              </div>
+              {% with compact=true %}{% include '_vacancy_details.html' %}{% endwith %}
+              {% if vac.loc_match %}
+              <div class="mt-2"><span class="badge bg-success-subtle text-success-emphasis" style="font-size:.7rem;"><i class="bi bi-check-circle-fill me-1"></i>Matches your preferred location</span></div>
               {% endif %}
 
               {% if warns %}

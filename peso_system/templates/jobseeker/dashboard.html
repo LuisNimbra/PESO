@@ -41,13 +41,13 @@
 </div>
 {% else %}
 {% set checks = [
+  ('Basic details', identity_ok),
   ('Education level', ap.educ_level),
   ('Preferred position', ap.preferred_position),
-  ('Skills', ap.skills),
-  ('Work experience', ap.work_experience or (ap.employment_status != 'Employed' and ap.unemployed_reason == 'New entrant/fresh graduate'))] %}
+  ('Skills', ap.skills)] %}
 {% set done = checks|selectattr(1)|list|length %}
 {% set pct = (done * 100 / checks|length)|int %}
-{% set profile_ok = ap.educ_level and ap.preferred_position and ap.skills %}
+{% set profile_ok = identity_ok and ap.educ_level and ap.preferred_position and ap.skills %}
 {% set active_ref = referrals|selectattr('status', 'ne', 'cancelled')|list|first %}
 
 <!-- Profile completeness -->
@@ -68,7 +68,7 @@
       </div>
       {% endfor %}
     </div>
-    <div class="small text-muted mt-2">Fresh graduate? Choose "New entrant/fresh graduate" as your unemployment reason and work experience counts as complete.</div>
+    <div class="small text-muted mt-2">Work experience is optional. Adding it can improve your job matches.</div>
   </div>
 </div>
 {% endif %}

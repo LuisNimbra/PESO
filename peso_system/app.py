@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import (
-    Flask, render_template, request, redirect, url_for,
+    make_response, Flask, render_template, request, redirect, url_for,
     session, flash, jsonify, g, send_from_directory, abort
 )
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -25,7 +25,31 @@ from werkzeug.utils import secure_filename
 
 # ── APP CONFIG ────────────────────────────────────────────────────────────────
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
+def _load_secret_key():
+    """FLASK_SECRET_KEY if set; otherwise a random key saved once to instance/secret_key so logins survive restarts."""
+    env = os.environ.get('FLASK_SECRET_KEY')
+    if env:
+        return env
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'secret_key')
+    try:
+        with open(path, 'r', encoding='utf-8') as fh:
+            key = fh.read().strip()
+            if len(key) >= 32:
+                return key
+    except OSError:
+        pass
+    key = secrets.token_hex(32)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(key)
+    except OSError:
+        pass
+    return key
+
+
+app.secret_key = _load_secret_key()
+app.config['MAX_CONTENT_LENGTH'] = 12 * 1024 * 1024      # reject oversized uploads early
 
 # Set PESO_HTTPS=1 on an HTTPS host (e.g. PythonAnywhere); leave unset for local HTTP.
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -419,9 +443,18 @@ def init_db():
         ('salary_period',        'TEXT'),
         ('job_location',         'TEXT'),
         ('req_skills',           'TEXT'),
+        ('requirements_deadline', 'DATE'),
+        ('interview_date',       'DATE'),
+        ('interview_time',       'TEXT'),
+        ('interview_date_end',   'DATE'),
+        ('interview_time_end',   'TEXT'),
+        ('location_type',        'TEXT'),
+        ('venue_address',        'TEXT'),
+        ('max_applicants',       'INTEGER'),
     ]:
         if col not in vcols:
             db.execute(f'ALTER TABLE job_vacancies ADD COLUMN {col} {ddl}')
+    db.execute("UPDATE job_vacancies SET location_type = CASE WHEN is_local=1 THEN 'local' ELSE 'ph' END WHERE location_type IS NULL OR location_type=''")
     # Drop obsolete free-text requirement columns (replaced by matchable fields)
     for dead in ('req_physical', 'req_experience', 'req_other'):
         if dead in vcols:
@@ -430,6 +463,10 @@ def init_db():
             except sqlite3.OperationalError:
                 pass  # older SQLite without DROP COLUMN support — harmless to keep
 
+    try:
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_referrals_one_active ON referrals(applicant_id) WHERE status != 'cancelled'")
+    except sqlite3.IntegrityError:
+        pass   # existing duplicate data: leave the app-level check in place
     rcols = [r[1] for r in db.execute("PRAGMA table_info(referrals)").fetchall()]
     if 'suitability_score' not in rcols:
         db.execute('ALTER TABLE referrals ADD COLUMN suitability_score REAL')
@@ -558,13 +595,122 @@ EDUC_RANK = {
     'College Level': 7, 'College Undergraduate': 8, 'College Graduate': 9,
     "Post-Graduate (Master's / Doctorate Degree)": 10,
 }
-REQ_EDUC_CHOICES = list(EDUC_RANK.keys())
+REQ_EDUC_CHOICES = EDUC_LEVELS     # employers pick from the same list jobseekers use
+
+def edu_req_text(level):
+    """'High School Graduate or higher' for rankable levels; Vocational / ALS / No Formal Education are shown as-is."""
+    return f'{level} or higher' if level in EDUC_RANK else (level or '')
+
+app.jinja_env.globals['edu_req_text'] = edu_req_text
 
 def _g(v, key):
     try:
         return v[key]
     except (KeyError, IndexError, TypeError):
         return None
+
+# ── Job location type (Local / Elsewhere in the Philippines / Overseas) ───────────────────
+LOCATION_TYPES_V = {
+    'local':    {'label': 'Local (CSJDM)',  'short': 'Local',        'css': 'bg-success-subtle text-success-emphasis'},
+    'ph':       {'label': 'Outside CSJDM',  'short': 'Outside CSJDM', 'css': 'bg-info-subtle text-info-emphasis'},
+    'overseas': {'label': 'Overseas',       'short': 'Overseas',     'css': 'bg-warning-subtle text-warning-emphasis'},
+}
+
+def loc_type(v):
+    t = _g(v, 'location_type')
+    if t in LOCATION_TYPES_V:
+        return t
+    return 'local' if _g(v, 'is_local') else 'ph'
+
+def loc_info(v):
+    return {'type': loc_type(v), **LOCATION_TYPES_V[loc_type(v)]}
+
+app.jinja_env.globals['loc_info'] = loc_info
+
+_OVERSEAS_WORDS = [
+    'uae', 'united arab emirates', 'dubai', 'abu dhabi', 'sharjah', 'saudi', 'riyadh', 'jeddah', 'dammam', 'qatar', 'doha',
+    'kuwait', 'bahrain', 'oman', 'muscat', 'singapore', 'japan', 'tokyo', 'osaka', 'korea', 'seoul', 'taiwan', 'taipei',
+    'hong kong', 'macau', 'malaysia', 'kuala lumpur', 'brunei', 'thailand', 'vietnam', 'indonesia', 'china', 'usa', 'u s a',
+    'united states', 'america', 'canada', 'australia', 'new zealand', 'united kingdom', 'uk', 'england', 'london', 'italy',
+    'spain', 'germany', 'france', 'israel', 'lebanon', 'jordan', 'egypt', 'cyprus', 'greece', 'norway', 'ireland', 'overseas', 'abroad',
+]
+_PLACE_CACHE = {}
+
+def _norm_place(x):
+    import unicodedata
+    x = unicodedata.normalize('NFKD', str(x or '')).encode('ascii', 'ignore').decode().lower()
+    x = re.sub(r'\b(city of|municipality of)\b', ' ', x)
+    x = re.sub(r'[^a-z0-9]+', ' ', x)
+    return ' '.join(x.split())
+
+def _place_index():
+    if _PLACE_CACHE:
+        return _PLACE_CACHE
+    base = os.path.join(app.root_path, 'static', 'data', 'psgc')
+    provinces, cities, csjdm_brgys = set(), set(), set()
+    try:
+        for p in json.load(open(os.path.join(base, 'provinces.json'), encoding='utf-8')):
+            provinces.add(_norm_place(p['n']))
+        for fn in os.listdir(base):
+            if not fn.endswith('.json') or fn == 'provinces.json':
+                continue
+            data = json.load(open(os.path.join(base, fn), encoding='utf-8'))
+            for city, brgys in data.items():
+                cities.add(_norm_place(city))
+                if 'san jose del monte' in _norm_place(city):
+                    csjdm_brgys.update(_norm_place(b) for b in brgys)
+    except (OSError, ValueError):
+        pass
+    cities.discard(''); provinces.discard('')
+    _PLACE_CACHE.update(provinces=provinces, cities=cities, csjdm_brgys=csjdm_brgys)
+    return _PLACE_CACHE
+
+def detect_location_type(text):
+    """Best-effort guess ('local' / 'ph' / 'overseas') from a free-text job location; None when unsure."""
+    t = _norm_place(text)
+    if not t:
+        return None
+    padded = f' {t} '
+    has = lambda name: f' {name} ' in padded
+    if any(has(w) for w in ('san jose del monte', 'sjdm', 'csjdm')):
+        return 'local'
+    if any(has(w) for w in _OVERSEAS_WORDS):
+        return 'overseas'
+    idx = _place_index()
+    other_place = any(has(n) for n in idx['cities'] | idx['provinces'] if n not in ('san jose', 'del monte'))
+    if any(has(b) for b in idx['csjdm_brgys']) and not other_place:
+        return 'local'
+    if other_place or any(has(w) for w in ('philippines', 'metro manila', 'ncr')):
+        return 'ph'
+    return None
+
+def resolve_location_type(f):
+    """Local / Outside CSJDM / Overseas, detected from the typed Job Location (blank = local)."""
+    loc = (f.get('job_location') or '').strip()
+    if not loc:
+        return 'local'
+    return detect_location_type(loc) or 'ph'
+
+
+def resolve_category(f):
+    """Occupational category from the form; 'Others' uses the typed-in category name."""
+    cat = (f.get('occupational_category') or '').strip()
+    if cat == 'Others':
+        cat = (f.get('occupational_category_other') or '').strip()[:60]
+    return cat
+
+
+def merge_required_skills(f):
+    """Ticked skills plus any custom 'Others' skills typed by the employer (comma-separated), de-duplicated."""
+    out, seen = [], set()
+    items = list(f.getlist('req_skills')) + [x for x in (f.get('req_skills_other') or '').split(',')]
+    for x in items:
+        x = ' '.join(x.split())[:40]
+        if x and x.lower() not in seen:
+            seen.add(x.lower())
+            out.append(x)
+    return ','.join(out[:15]) or None
+
 
 def parse_vacancy_requirements(f):
     """Read requirement/deadline fields from a form. Returns (values dict, error or None)."""
@@ -581,15 +727,25 @@ def parse_vacancy_requirements(f):
         'req_gender':             gender,
         'req_age_min':            num('req_age_min'),
         'req_age_max':            num('req_age_max'),
-        'req_education':          edu if edu in EDUC_RANK else None,
+        'req_education':          edu if edu in EDUC_LEVELS else None,
         'req_experience_months': num('req_experience_months'),
         'req_documents':          f.get('req_documents', '').strip() or None,
         'salary_min':             num('salary_min'),
         'salary_max':             num('salary_max'),
         'salary_period':          period if period in SALARY_PERIODS else None,
         'job_location':           (f.get('job_location') or '').strip() or None,
-        'req_skills':             ','.join(f.getlist('req_skills')) or None,
+        'req_skills':             merge_required_skills(f),
+        'requirements_deadline':  (f.get('requirements_deadline') or '').strip() or None,
+        'interview_date':         (f.get('interview_date') or '').strip() or None,
+        'interview_time':         (f.get('interview_time') or '').strip() or None,
+        'interview_date_end':     (f.get('interview_date_end') or '').strip() or None,
+        'interview_time_end':     (f.get('interview_time_end') or '').strip() or None,
+        'venue_address':          (f.get('venue_address') or '').strip()[:200] or None,
     }
+    # Unified time range ("08:00|18:00") overrides the separate start/end fields
+    rng = (f.get('interview_time_range') or '').strip()
+    if '|' in rng:
+        vals['interview_time'], vals['interview_time_end'] = [x.strip() or None for x in rng.split('|', 1)]
     if vals['salary_min'] and vals['salary_max'] and vals['salary_min'] > vals['salary_max']:
         return vals, 'Minimum salary cannot be greater than maximum salary.'
     if vals['req_age_min'] and vals['req_age_max'] and vals['req_age_min'] > vals['req_age_max']:
@@ -599,11 +755,38 @@ def parse_vacancy_requirements(f):
             datetime.strptime(vals['application_deadline'], '%Y-%m-%d')
         except ValueError:
             return vals, 'Application deadline is not a valid date.'
+    for key, label in (('requirements_deadline', 'Requirements deadline'), ('interview_date', 'Interview start date'),
+                       ('interview_date_end', 'Interview end date')):
+        if vals[key]:
+            try:
+                datetime.strptime(vals[key], '%Y-%m-%d')
+            except ValueError:
+                return vals, f'{label} is not a valid date.'
+    for key in ('interview_time', 'interview_time_end'):
+        if vals[key]:
+            try:
+                datetime.strptime(vals[key], '%H:%M')
+            except ValueError:
+                return vals, 'Interview time is not valid.'
+    if not vals['interview_date']:
+        # No interview period: ignore the (pre-filled) times and any end date
+        vals['interview_time'] = vals['interview_time_end'] = vals['interview_date_end'] = None
+    else:
+        if vals['interview_date_end'] and vals['interview_date_end'] < vals['interview_date']:
+            return vals, 'Interview end date cannot be before the start date.'
+        if vals['interview_date_end'] == vals['interview_date']:
+            vals['interview_date_end'] = None
+        if vals['interview_time'] and vals['interview_time_end'] and vals['interview_time_end'] <= vals['interview_time']:
+            return vals, 'Interview end time must be after the start time.'
+        if not vals['venue_address']:
+            return vals, 'Please enter the venue address for the interview.'
     return vals, None
 
 REQ_COLS = ['application_deadline', 'req_gender', 'req_age_min', 'req_age_max',
             'req_education', 'req_experience_months', 'req_documents',
-            'salary_min', 'salary_max', 'salary_period', 'job_location', 'req_skills']
+            'salary_min', 'salary_max', 'salary_period', 'job_location', 'req_skills',
+            'requirements_deadline', 'interview_date', 'interview_time', 'interview_date_end', 'interview_time_end',
+            'venue_address']
 
 def salary_text(v):
     """Human-readable salary for a vacancy row/dict, e.g. '₱18,000–₱22,000 / month'."""
@@ -623,6 +806,34 @@ def salary_text(v):
 
 app.jinja_env.globals['salary_text'] = salary_text
 
+def interview_text(v):
+    """e.g. 'Dec 22 \u2013 Dec 26, 2026 \u00b7 8:00 AM \u2013 6:00 PM' for a vacancy's interview period ('' when not set)."""
+    def fmt_d(dt, year=True):
+        return dt.strftime('%b %d, %Y' if year else '%b %d').replace(' 0', ' ')
+
+    def fmt_t(x):
+        return datetime.strptime(x, '%H:%M').strftime('%I:%M %p').lstrip('0')
+    d1, d2 = _g(v, 'interview_date'), _g(v, 'interview_date_end')
+    if not d1:
+        return ''
+    try:
+        a1 = datetime.strptime(d1, '%Y-%m-%d')
+        if d2 and d2 != d1:
+            a2 = datetime.strptime(d2, '%Y-%m-%d')
+            out = f"{fmt_d(a1, a1.year != a2.year)} \u2013 {fmt_d(a2)}"
+        else:
+            out = fmt_d(a1)
+        t1, t2 = _g(v, 'interview_time'), _g(v, 'interview_time_end')
+        if t1 and t2:
+            out += f' \u00b7 {fmt_t(t1)} \u2013 {fmt_t(t2)}'
+        elif t1:
+            out += f' \u00b7 {fmt_t(t1)}'
+    except ValueError:
+        return ''
+    return out
+
+app.jinja_env.globals['interview_text'] = interview_text
+
 def req_summary(v):
     """Short human-readable requirement chips for a vacancy row/dict."""
     out = []
@@ -637,7 +848,7 @@ def req_summary(v):
     elif hi:
         out.append(f'Up to {hi} yrs old')
     if _g(v, 'req_education'):
-        out.append(f"{_g(v, 'req_education')} or higher")
+        out.append(edu_req_text(_g(v, 'req_education')))
     m = _g(v, 'req_experience_months')
     if m:
         out.append(f'{m}+ mos. experience')
@@ -678,7 +889,7 @@ def _total_exp_months(ap):
             total += int(mo)
     return total
 
-def req_warnings(v, ap):
+def req_warnings(v, ap, viewer='jobseeker'):
     """Ways the applicant profile does not meet the vacancy's checkable requirements."""
     if not ap:
         return []
@@ -704,7 +915,8 @@ def req_warnings(v, ap):
         req_set = {s.strip().lower() for s in req_s.split(',') if s.strip()}
         have_set = {s.strip().lower() for s in (_g(ap, 'skills') or '').split(',') if s.strip()}
         if req_set and not req_set.intersection(have_set):
-            w.append('None of the required skills match your profile')
+            w.append("None of the required skills match the applicant's profile" if viewer == 'employer'
+                     else 'None of the required skills match your profile')
     return w
 
 def _vacancy_location(v):
@@ -719,6 +931,8 @@ def _vacancy_location(v):
     parts = [p for p in (_g(v, 'e_city'), _g(v, 'e_province')) if p]
     return ', '.join(parts)
 
+app.jinja_env.globals['vacancy_location'] = _vacancy_location
+
 def _location_matches(v, ap):
     """True if the applicant's preferred local work location matches the vacancy's."""
     if not ap:
@@ -728,6 +942,10 @@ def _location_matches(v, ap):
         return False
     loc = _vacancy_location(v).lower()
     if loc and (pref in loc or loc in pref):
+        return True
+    # "Quezon City, Metro Manila" should match a vacancy located in "Quezon City"
+    pref_city, loc_n = _norm_place(pref.split(',')[0]), _norm_place(loc)
+    if pref_city and loc_n and (f' {pref_city} ' in f' {loc_n} '):
         return True
     if _g(v, 'is_local') and any(k in pref for k in ('san jose del monte', 'csjdm', 'sjdm')):
         return True
@@ -779,9 +997,59 @@ def get_recommendations(educ_level, preferred_position, skills, work_experience,
             'suitability_pct':   f'{score * 100:.1f}%',
             'vacancies':         vac_by_cat.get(cat_name, []),
         })
+    # Vacancies posted under a custom ("Others") category are not scored by the model; list them last
+    known = set(CATEGORIES.values())
+    other_vacs = [x for cat, lst in vac_by_cat.items() if cat not in known for x in lst]
+    if other_vacs:
+        other_vacs.sort(key=lambda x: (x['req_unmet'], 0 if x['loc_match'] else 1))
+        results.append({
+            'rank': len(results) + 1, 'category': 'Other Openings', 'icon': 'bi-briefcase',
+            'suitability_score': 0.0, 'suitability_pct': '', 'unscored': True,
+            'vacancies': other_vacs,
+        })
     return results
 
 # ── AUTH HELPERS ──────────────────────────────────────────────────────────────
+@app.before_request
+def drop_stale_session():
+    """If the logged-in account was deleted (or deactivated), clear the old session so the user is sent to the login page."""
+    if 'user_id' in session and not (request.endpoint or '').startswith('static'):
+        row = get_db().execute('SELECT is_active FROM users WHERE id=?', (session['user_id'],)).fetchone()
+        if row is None or row['is_active'] == 0:
+            session.clear()
+
+@app.before_request
+def csrf_same_origin_guard():
+    """Reject cross-site form posts: a state-changing request must come from this same site.
+    Browsers always send Origin (or at least Referer) on POST; SameSite=Lax cookies are the second layer."""
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        src = request.headers.get('Origin') or request.headers.get('Referer')
+        if src:
+            from urllib.parse import urlparse
+            if urlparse(src).netloc != request.host:
+                abort(403)
+
+
+@app.after_request
+def security_headers(resp):
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('Referrer-Policy', 'same-origin')
+    return resp
+
+
+@app.errorhandler(413)
+def too_large(_e):
+    flash('That file is too large (limit 12 MB).', 'danger')
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.errorhandler(403)
+def forbidden(_e):
+    flash('That request was blocked for your protection. Please try again from the page itself.', 'danger')
+    return redirect(url_for('index'))
+
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -989,6 +1257,16 @@ def login():
         db       = get_db()
         user     = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         log_name = email
+        # Throttle brute-force guessing: too many recent failures for this email or from this address
+        recent_email = db.execute(
+            "SELECT COUNT(*) FROM login_logs WHERE username=? AND outcome='failed' AND timestamp >= datetime('now','-15 minutes')",
+            (email,)).fetchone()[0]
+        recent_ip = db.execute(
+            "SELECT COUNT(*) FROM login_logs WHERE ip_address=? AND outcome='failed' AND timestamp >= datetime('now','-15 minutes')",
+            (ip,)).fetchone()[0]
+        if recent_email >= 5 or recent_ip >= 20:
+            flash('Too many failed sign-in attempts. Please wait 15 minutes and try again.', 'danger')
+            return render_template('login.html'), 429
         if user and check_password_hash(user['password_hash'], password):
             if not user['is_active']:
                 db.execute('INSERT INTO login_logs (user_id,username,ip_address,outcome) VALUES (?,?,?,?)',
@@ -1156,6 +1434,18 @@ def change_password():
                            layout=layout, cancel_url=cancel_url)
 
 # ── JOBSEEKER PORTAL ──────────────────────────────────────────────────────────
+IDENTITY_LOCK_MSG = ("Access Locked: Please complete your basic profile details (Name, Birthday, "
+                     "Mobile Number, Address, and Sex) in 'My Profile' first to unlock your job recommendations.")
+
+def identity_complete(ap):
+    """True only if every basic identity field is filled in: full name, birthday,
+    mobile number, complete address (province, city, barangay, present address) and sex."""
+    if not ap:
+        return False
+    keys = ('first_name', 'last_name', 'birthdate', 'contact_number',
+            'province', 'city', 'barangay', 'address_line', 'sex')
+    return all(str(ap[k] if k in ap.keys() else '' or '').strip() not in ('', 'None') for k in keys)
+
 def _get_my_applicant():
     return get_db().execute(
         'SELECT * FROM applicants WHERE user_id=?', (session['user_id'],)
@@ -1211,10 +1501,22 @@ def _save_certificate(file, applicant):
 @login_required
 def certificate_file(filename):
     filename = os.path.basename(filename)
-    if session.get('role') == ROLE_JOBSEEKER:
+    role = session.get('role')
+    if role == ROLE_JOBSEEKER:
         ap = _get_my_applicant()
         if not ap or not filename.startswith(f"cert{ap['id']}_"):
             abort(404)
+    elif role == ROLE_EMPLOYER:
+        # An employer may only open certificates of applicants who applied to one of their vacancies
+        m = re.match(r'cert(\d+)_', filename)
+        allowed = bool(m) and get_db().execute(
+            "SELECT 1 FROM referrals r JOIN job_vacancies jv ON jv.id=r.vacancy_id "
+            "WHERE r.applicant_id=? AND jv.employer_id=? AND r.status != 'cancelled' LIMIT 1",
+            (int(m.group(1)), session['user_id'])).fetchone()
+        if not allowed:
+            abort(404)
+    elif role != ROLE_ADMIN:
+        abort(404)
     return send_from_directory(CERT_DIR, filename)
 
 @app.route('/photos/<path:filename>')
@@ -1248,7 +1550,7 @@ def jobseeker_dashboard():
             ORDER BY r.referred_at DESC LIMIT 5
         ''', (ap['id'],)).fetchall()
 
-        if pipeline and ap['educ_level'] and ap['preferred_position'] and ap['skills']:
+        if pipeline and identity_complete(ap) and ap['educ_level'] and ap['preferred_position'] and ap['skills']:
             vacancies = db.execute(
                 'SELECT id, employer_name, job_title, occupational_category '
                 f'FROM job_vacancies WHERE {OPEN_VACANCY_SQL}'
@@ -1265,7 +1567,7 @@ def jobseeker_dashboard():
     ).fetchone()[0]
 
     return render_template('jobseeker/dashboard.html',
-                           ap=ap, top_rec=top_rec,
+                           ap=ap, top_rec=top_rec, identity_ok=identity_complete(ap),
                            referrals=referrals,
                            active_vacancies=active_vacancies)
 
@@ -1526,8 +1828,9 @@ def jobseeker_recommendations():
     ap  = _get_my_applicant()
     results = []
     generated = False
+    identity_ok = identity_complete(ap)
     profile_ok = bool(ap and ap['educ_level'] and ap['preferred_position'] and ap['skills'])
-    if profile_ok and request.args.get('generate') and pipeline:
+    if identity_ok and profile_ok and request.args.get('generate') and pipeline:
         vacancies = db.execute(
             'SELECT jv.*, e.city AS e_city, e.province AS e_province '
             'FROM job_vacancies jv LEFT JOIN employers e ON e.user_id = jv.employer_id '
@@ -1559,7 +1862,8 @@ def jobseeker_recommendations():
         active = _active_referral(ap['id'])
     return render_template('jobseeker/recommendations.html',
                            ap=ap, results=results, generated=generated,
-                           profile_ok=profile_ok, applied_ids=applied_ids,
+                           profile_ok=profile_ok, identity_ok=identity_ok,
+                           identity_lock_msg=IDENTITY_LOCK_MSG, applied_ids=applied_ids,
                            has_active_referral=bool(active), active_referral=active,
                            pipeline_loaded=pipeline is not None)
 
@@ -1616,8 +1920,8 @@ def jobseeker_apply_confirm(vid):
     if not ap:
         flash('Profile not found.', 'danger')
         return redirect(url_for('jobseeker_dashboard'))
-    if not ap['educ_level'] or not ap['preferred_position'] or not ap['skills']:
-        flash('Please complete your profile before applying.', 'warning')
+    if not identity_complete(ap) or not ap['educ_level'] or not ap['preferred_position'] or not ap['skills']:
+        flash('Please complete your profile details before applying.', 'warning')
         return redirect(url_for('jobseeker_profile'))
     jv = db.execute(
         f'SELECT * FROM job_vacancies WHERE id=? AND {OPEN_VACANCY_SQL}', (vid,)
@@ -1657,8 +1961,8 @@ def jobseeker_apply():
     if not ap:
         flash('Profile not found.', 'danger')
         return redirect(url_for('jobseeker_dashboard'))
-    if not ap['educ_level'] or not ap['preferred_position'] or not ap['skills']:
-        flash('Please complete your profile before applying.', 'warning')
+    if not identity_complete(ap) or not ap['educ_level'] or not ap['preferred_position'] or not ap['skills']:
+        flash('Please complete your profile details before applying.', 'warning')
         return redirect(url_for('jobseeker_profile'))
     db = get_db()
     vacancy_id = request.form.get('vacancy_id', type=int)
@@ -1693,13 +1997,19 @@ def jobseeker_apply():
             if cat['category'] == jv['occupational_category']:
                 score = cat['suitability_score']
                 break
-    cur = db.execute(
-        'INSERT INTO referrals (applicant_id, vacancy_id, referred_by, status, suitability_score) '
-        'VALUES (?,?,?,?,?)',
-        (ap['id'], vacancy_id, session['user_id'], 'referred', score)
-    )
-    db.commit()
+    try:
+        cur = db.execute(
+            'INSERT INTO referrals (applicant_id, vacancy_id, referred_by, status, suitability_score) '
+            'VALUES (?,?,?,?,?)',
+            (ap['id'], vacancy_id, session['user_id'], 'referred', score)
+        )
+    except sqlite3.IntegrityError:
+        # Double-click / two tabs: the database already holds this applicant's active referral
+        db.rollback()
+        flash('You already have an active application. Withdraw it from My Applications first.', 'warning')
+        return redirect(url_for('jobseeker_referrals'))
     rid = cur.lastrowid
+    db.commit()
     flash(f'Application submitted for "{jv["job_title"]}" at {jv["employer_name"]}!', 'success')
     return redirect(url_for('referral_slip', rid=rid))
 
@@ -1926,10 +2236,37 @@ def employer_dashboard():
           AND jv.application_deadline = date('now','+8 hours','+1 day')
         ORDER BY jv.job_title
     ''', (uid,)).fetchall()
+    # Per-vacancy applicant counts (open vacancies), upcoming interviews and "action needed" items
+    today = _today_ph()
+    open_vacs = []
+    for v in db.execute(
+        "SELECT jv.*, (SELECT COUNT(*) FROM referrals r WHERE r.vacancy_id=jv.id AND r.status != 'cancelled') AS applicants "
+        f"FROM job_vacancies jv WHERE jv.employer_id=? AND {OPEN_VACANCY_SQL} "
+        "ORDER BY jv.created_at DESC", (uid,)).fetchall():
+        v = dict(v)
+        v['interview'] = interview_text(v)
+        last_day = v['interview_date_end'] or v['interview_date']
+        v['interview_upcoming'] = bool(last_day and last_day >= today)
+        open_vacs.append(v)
+    upcoming = sorted([v for v in open_vacs if v['interview_upcoming']], key=lambda v: v['interview_date'])
+    actions = []
+    if expiring_soon:
+        n = len(expiring_soon)
+        actions.append(dict(icon='bi-hourglass-split', tone='warning', url=url_for('employer_vacancies'),
+                            text=f"{n} vacanc{'y expires' if n == 1 else 'ies expire'} tomorrow. Extend the deadline if you still need applicants."))
+    if new_this_week:
+        actions.append(dict(icon='bi-person-plus-fill', tone='primary', url=url_for('employer_referred'),
+                            text=f"{new_this_week} new applicant{'' if new_this_week == 1 else 's'} in the last 7 days to review."))
+    no_sched = [v for v in open_vacs if not v['interview_date']]
+    if no_sched:
+        n = len(no_sched)
+        actions.append(dict(icon='bi-calendar-event', tone='secondary', url=url_for('employer_vacancies'),
+                            text=f"{n} active vacanc{'y has' if n == 1 else 'ies have'} no interview schedule yet (shown to applicants as \"To be announced\")."))
     return render_template('employer/dashboard.html', emp=emp,
                            active_vac=active_vac, expired_vac=expired_vac,
                            total_referred=total_referred, new_this_week=new_this_week,
-                           recent_referrals=recent_referrals, expiring_soon=expiring_soon)
+                           recent_referrals=recent_referrals, expiring_soon=expiring_soon,
+                           open_vacs=open_vacs, upcoming=upcoming, actions=actions)
 
 @app.route('/employer/vacancies')
 @employer_required
@@ -1946,12 +2283,46 @@ def employer_vacancies():
     elif status == 'inactive':
         conds.append('is_active=0')
     vacancies = db.execute(
-        f'SELECT *, {EXPIRED_SQL} AS expired FROM job_vacancies WHERE {" AND ".join(conds)} ORDER BY created_at DESC',
+        f'SELECT *, {EXPIRED_SQL} AS expired, '
+        "(SELECT COUNT(*) FROM referrals r WHERE r.vacancy_id=job_vacancies.id AND r.status != 'cancelled') AS applicant_count "
+        f'FROM job_vacancies WHERE {" AND ".join(conds)} ORDER BY created_at DESC',
         params
     ).fetchall()
     return render_template('employer/vacancies.html', emp=emp,
                            vacancies=vacancies, status=status,
                            categories=CATEGORY_LIST)
+
+_PLACES_CACHE = []
+
+@app.route('/api/places')
+def places_list():
+    """'City, Province' suggestions for location fields (from the bundled PSGC data)."""
+    if not _PLACES_CACHE:
+        base = os.path.join(app.root_path, 'static', 'data', 'psgc')
+        try:
+            names = {p['c']: p['n'] for p in json.load(open(os.path.join(base, 'provinces.json'), encoding='utf-8'))}
+            out = []
+            for fn in sorted(os.listdir(base)):
+                if not fn.endswith('.json') or fn == 'provinces.json':
+                    continue
+                prov = 'Metro Manila' if fn == 'NCR.json' else names.get(fn[:-5], '')
+                if not prov:
+                    continue
+                for city in json.load(open(os.path.join(base, fn), encoding='utf-8')):
+                    nm = re.sub(r'^City of\s+', '', city).strip()
+                    out.append(f'{nm}, {prov}')
+            _PLACES_CACHE.extend(sorted(set(out)))
+        except (OSError, ValueError):
+            pass
+    resp = jsonify(_PLACES_CACHE)
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
+@app.route('/api/location-hint')
+@login_required
+def location_hint():
+    t = detect_location_type(request.args.get('q', ''))
+    return jsonify(type=t, label=LOCATION_TYPES_V[t]['label'] if t else None)
 
 @app.route('/employer/vacancies/add', methods=['GET', 'POST'])
 @employer_required
@@ -1962,8 +2333,13 @@ def employer_vacancy_add():
     if request.method == 'POST':
         f = request.form
         req, err = parse_vacancy_requirements(f)
-        if not f.get('job_title') or not f.get('occupational_category'):
-            err = 'Job title and occupational category are required.'
+        category = resolve_category(f)
+        ltype = resolve_location_type(f)
+        if err:
+            pass
+        elif not f.get('job_title') or not category:
+            err = ('Please specify the occupational category.' if (f.get('occupational_category') or '').strip() == 'Others'
+                   else 'Job title and occupational category are required.')
         elif not err and req['application_deadline'] and req['application_deadline'] < _today_ph():
             err = 'Application deadline cannot be in the past.'
         if err:
@@ -1974,11 +2350,11 @@ def employer_vacancy_add():
                                    salary_periods=SALARY_PERIODS, skills_list=SKILLS_LIST)
         get_db().execute(
             'INSERT INTO job_vacancies (employer_name, job_title, occupational_category, '
-            'is_local, employer_id, ' + ', '.join(REQ_COLS) + ') VALUES (?,?,?,?,?,' +
+            'is_local, location_type, employer_id, ' + ', '.join(REQ_COLS) + ') VALUES (?,?,?,?,?,?,' +
             ','.join('?' * len(REQ_COLS)) + ')',
             (emp['company_name'], f.get('job_title', '').strip(),
-             f.get('occupational_category', ''),
-             1 if f.get('is_local', '1') == '1' else 0,
+             category,
+             1 if ltype == 'local' else 0, ltype,
              session['user_id'], *[req[c] for c in REQ_COLS])
         )
         get_db().commit()
@@ -2006,6 +2382,10 @@ def employer_vacancy_edit(vid):
     if request.method == 'POST':
         f = request.form
         req, err = parse_vacancy_requirements(f)
+        category = resolve_category(f)
+        ltype = resolve_location_type(f)
+        if not err and not category:
+            err = 'Please specify the occupational category.'
         if (not err and req['application_deadline'] and req['application_deadline'] < _today_ph()
                 and req['application_deadline'] != v['application_deadline']):
             err = 'Application deadline cannot be in the past.'
@@ -2016,10 +2396,10 @@ def employer_vacancy_edit(vid):
                                    action='edit', educ_choices=REQ_EDUC_CHOICES, today=_today_ph(),
                                    salary_periods=SALARY_PERIODS, skills_list=SKILLS_LIST)
         db.execute(
-            'UPDATE job_vacancies SET job_title=?, occupational_category=?, is_local=?, ' +
+            'UPDATE job_vacancies SET job_title=?, occupational_category=?, is_local=?, location_type=?, ' +
             ', '.join(f'{c}=?' for c in REQ_COLS) + ' WHERE id=?',
-            (f.get('job_title', '').strip(), f.get('occupational_category', ''),
-             1 if f.get('is_local', '1') == '1' else 0, *[req[c] for c in REQ_COLS], vid)
+            (f.get('job_title', '').strip(), category,
+             1 if ltype == 'local' else 0, ltype, *[req[c] for c in REQ_COLS], vid)
         )
         db.commit()
         flash('Vacancy updated.', 'success')
@@ -2042,6 +2422,22 @@ def employer_vacancy_toggle(vid):
                    (0 if v['is_active'] else 1, vid))
         db.commit()
         flash('Vacancy status updated.', 'success')
+    return redirect(url_for('employer_vacancies'))
+
+@app.route('/employer/vacancies/<int:vid>/delete', methods=['POST'])
+@employer_required
+def employer_vacancy_delete(vid):
+    db = get_db()
+    v  = db.execute('SELECT job_title FROM job_vacancies WHERE id=? AND employer_id=?',
+                    (vid, session['user_id'])).fetchone()
+    if not v:
+        flash('Vacancy not found.', 'danger')
+        return redirect(url_for('employer_vacancies'))
+    db.execute('DELETE FROM recommendations WHERE vacancy_id=?', (vid,))
+    db.execute('DELETE FROM referrals WHERE vacancy_id=?', (vid,))
+    db.execute('DELETE FROM job_vacancies WHERE id=?', (vid,))
+    db.commit()
+    flash(f'Vacancy "{v["job_title"]}" has been deleted.', 'success')
     return redirect(url_for('employer_vacancies'))
 
 @app.route('/employer/referred')
@@ -2083,7 +2479,7 @@ def employer_referred_detail(rid):
                a.skills, a.work_experience, a.work_history, a.contact_number,
                jv.job_title, jv.occupational_category,
                jv.req_gender, jv.req_age_min, jv.req_age_max, jv.req_education,
-               jv.req_experience_months,
+               jv.req_experience_months, jv.req_skills,
                u.email AS applicant_email
         FROM referrals r
         JOIN applicants a     ON r.applicant_id = a.id
@@ -2095,7 +2491,7 @@ def employer_referred_detail(rid):
         flash('Referred applicant not found.', 'danger')
         return redirect(url_for('employer_referred'))
     return render_template('employer/referred_detail.html', r=r,
-                           chips=req_summary(r), warnings=req_warnings(r, r))
+                           chips=req_summary(r), warnings=req_warnings(r, r, viewer='employer'))
 
 # ── HOME / OVERVIEW (admin) ──────────────────────────────────────────────────
 @app.route('/home')
@@ -2132,6 +2528,10 @@ def home():
         'FROM applicants WHERE is_archived=0 '
         'ORDER BY created_at DESC, id DESC LIMIT 5'
     ).fetchall()
+    recent_employers = db.execute(
+        'SELECT id, company_name, contact_person, line_of_business, is_approved, created_at '
+        'FROM employers ORDER BY created_at DESC, id DESC LIMIT 5'
+    ).fetchall()
     recent_referrals_rows = db.execute('''
         SELECT r.referred_at, r.status,
                a.first_name, a.last_name,
@@ -2159,6 +2559,7 @@ def home():
                            pending_employers=pending_employers,
                            last_login=last_login,
                            recent_applicants=recent_applicants,
+                           recent_employers=recent_employers,
                            recent_referrals_rows=recent_referrals_rows,
                            recent_recs=recent_recs)
 
@@ -2168,12 +2569,8 @@ def home():
 def analytics():
     return render_template('analytics.html')
 
-@app.route('/api/analytics')
-@admin_required
-def api_analytics():
+def _analytics_data(date_from, date_to):
     db = get_db()
-    date_from = request.args.get('date_from', '').strip()
-    date_to   = request.args.get('date_to', '').strip()
     dp = []
     df_sql = ''
     if date_from:
@@ -2198,31 +2595,90 @@ def api_analytics():
         f'SELECT employment_status, COUNT(*) c FROM applicants WHERE is_archived=0{df_sql} '
         'GROUP BY employment_status', dp
     ).fetchall()
-    d1_rows = db.execute(
-        f"SELECT barangay, COUNT(*) c FROM applicants "
-        f"WHERE is_archived=0{df_sql} AND district='District 1' AND barangay!='' "
-        "GROUP BY barangay ORDER BY c DESC", dp
-    ).fetchall()
-    d2_rows = db.execute(
-        f"SELECT barangay, COUNT(*) c FROM applicants "
-        f"WHERE is_archived=0{df_sql} AND district='District 2' AND barangay!='' "
-        "GROUP BY barangay ORDER BY c DESC", dp
-    ).fetchall()
+    # Barangay / district breakdown: spelling variants are merged, and anyone who is not in a CSJDM
+    # barangay (other city, or no address yet) is counted in a third group so the totals add up.
+    d1, d2, outside = {}, {}, {}
+    for r in db.execute(
+        f"SELECT barangay, city, province, district FROM applicants WHERE is_archived=0{df_sql}", dp
+    ).fetchall():
+        brgy = ' '.join((r['barangay'] or '').split())
+        city = ' '.join((r['city'] or '').split())
+        dist = r['district'] or (barangay_to_district(brgy, city) if brgy else '')
+        target = d1 if dist == 'District 1' else d2 if dist == 'District 2' else None
+        if target is not None and brgy:
+            key, label = brgy.lower(), brgy
+        else:
+            place = city or ' '.join((r['province'] or '').split())
+            target = outside
+            key, label = (place.lower(), place) if place else ('', 'Not specified')
+        entry = target.setdefault(key, [label, 0])
+        entry[1] += 1
+    def ranked(d):
+        items = sorted(d.values(), key=lambda x: (-x[1], x[0].lower()))
+        return [i[0] for i in items], [i[1] for i in items]
+    d1_labels, d1_values = ranked(d1)
+    d2_labels, d2_values = ranked(d2)
+    o_labels, o_values = ranked(outside)
 
-    return jsonify({
+    # Registrations in the current month (Philippine time), independent of the date filter
+    month = "strftime('%Y-%m', created_at, '+8 hours') = strftime('%Y-%m', 'now', '+8 hours')"
+    new_month = {
+        'total':  db.execute(f'SELECT COUNT(*) FROM applicants WHERE is_archived=0 AND {month}').fetchone()[0],
+        'youth':  db.execute(f'SELECT COUNT(*) FROM applicants WHERE is_archived=0 AND {month} AND age BETWEEN {YOUTH_AGE_MIN} AND {YOUTH_AGE_MAX}').fetchone()[0],
+        'senior': db.execute(f'SELECT COUNT(*) FROM applicants WHERE is_archived=0 AND {month} AND age >= {SENIOR_AGE_MIN}').fetchone()[0],
+        'pwd':    db.execute(f'SELECT COUNT(*) FROM applicants WHERE is_archived=0 AND {month} AND is_pwd=1').fetchone()[0],
+    }
+    return {
         'jobseekers': {
             'total': total, 'male': male, 'female': fem,
-            'youth': youth, 'senior': senior, 'pwd': pwd,
+            'youth': youth, 'senior': senior, 'pwd': pwd, 'new_month': new_month,
             'educ_labels':  [r['educ_level'] for r in educ_rows],
             'educ_values':  [r['c'] for r in educ_rows],
             'emp_labels':   [r['employment_status'] for r in emp_rows],
             'emp_values':   [r['c'] for r in emp_rows],
-            'd1_labels':    [r['barangay'] for r in d1_rows],
-            'd1_values':    [r['c'] for r in d1_rows],
-            'd2_labels':    [r['barangay'] for r in d2_rows],
-            'd2_values':    [r['c'] for r in d2_rows],
+            'd1_labels': d1_labels, 'd1_values': d1_values,
+            'd2_labels': d2_labels, 'd2_values': d2_values,
+            'o_labels':  o_labels,  'o_values':  o_values,
         }
-    })
+    }
+
+@app.route('/api/analytics')
+@admin_required
+def api_analytics():
+    return jsonify(_analytics_data(request.args.get('date_from', '').strip(), request.args.get('date_to', '').strip()))
+
+@app.route('/analytics/export')
+@admin_required
+def analytics_export():
+    """CSV of the dashboard figures for the selected registration dates."""
+    import csv
+    import io
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+    js = _analytics_data(date_from, date_to)['jobseekers']
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(['PESO CSJDM - Analytical Dashboard'])
+    w.writerow(['Registration dates', f'{date_from or "all"} to {date_to or "all"}'])
+    w.writerow(['Generated', _now_ph().strftime('%Y-%m-%d %H:%M')])
+    w.writerow([])
+    w.writerow(['Summary', 'Count'])
+    for label, key in (('Registered jobseekers', 'total'), ('Male', 'male'), ('Female', 'female'),
+                       ('Youths', 'youth'), ('Senior citizens', 'senior'), ('Persons with disability', 'pwd')):
+        w.writerow([label, js[key]])
+    for title, labels, values in (('Educational attainment', js['educ_labels'], js['educ_values']),
+                                  ('Employment status', js['emp_labels'], js['emp_values']),
+                                  ('District 1 - jobseekers by barangay', js['d1_labels'], js['d1_values']),
+                                  ('District 2 - jobseekers by barangay', js['d2_labels'], js['d2_values']),
+                                  ('Outside CSJDM / no address', js['o_labels'], js['o_values'])):
+        w.writerow([])
+        w.writerow([title, 'Count'])
+        for lbl, v in zip(labels, values):
+            w.writerow([lbl, v])
+    resp = make_response('\ufeff' + buf.getvalue())
+    resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    resp.headers['Content-Disposition'] = f'attachment; filename=peso_analytics_{_now_ph().strftime("%Y%m%d")}.csv'
+    return resp
 
 # ── APPLICANTS ────────────────────────────────────────────────────────────────
 @app.route('/applicants')
@@ -2354,6 +2810,8 @@ def referral_slip(rid):
                jv.job_title, jv.employer_name, jv.occupational_category, jv.employer_id,
                jv.created_at AS posted_at, jv.application_deadline, jv.req_gender, jv.req_age_min,
                jv.req_age_max, jv.req_education, jv.req_experience_months, jv.req_documents,
+               jv.requirements_deadline, jv.interview_date, jv.interview_time, jv.interview_date_end, jv.interview_time_end,
+               jv.venue_address,
                u.full_name AS accepted_by_name,
                e.contact_person AS e_contact, e.company_name AS e_company
         FROM referrals r
@@ -2546,12 +3004,42 @@ def user_delete(uid):
 @app.route('/users/login-history')
 @admin_required
 def login_history():
-    logs = get_db().execute(
-        'SELECT ll.*, u.full_name FROM login_logs ll '
-        'LEFT JOIN users u ON ll.user_id=u.id '
-        'ORDER BY ll.timestamp DESC LIMIT 200'
+    db = get_db()
+    search = request.args.get('search', '').strip()
+    outcome = request.args.get('outcome', 'all')
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+    conds, params = [], []
+    if search:
+        like = f'%{search}%'
+        conds.append('(ll.username LIKE ? OR u.full_name LIKE ? OR ll.ip_address LIKE ?)')
+        params += [like, like, like]
+    if outcome == 'success':
+        conds.append("ll.outcome='success'")
+    elif outcome == 'failed':
+        conds.append("ll.outcome='failed'")
+    elif outcome == 'denied':
+        conds.append("ll.outcome='denied_inactive'")
+    if date_from:
+        conds.append("date(ll.timestamp, '+8 hours') >= ?")
+        params.append(date_from)
+    if date_to:
+        conds.append("date(ll.timestamp, '+8 hours') <= ?")
+        params.append(date_to)
+    where = ('WHERE ' + ' AND '.join(conds)) if conds else ''
+    base = f'FROM login_logs ll LEFT JOIN users u ON ll.user_id=u.id {where}'
+    total = db.execute(f'SELECT COUNT(*) {base}', params).fetchone()[0]
+    ok_count = db.execute(f"SELECT COUNT(*) {base}{' AND' if conds else ' WHERE'} ll.outcome='success'", params).fetchone()[0]
+    page = max(1, request.args.get('page', 1, type=int))
+    pages = max(1, (total + LIST_PER_PAGE - 1) // LIST_PER_PAGE)
+    page = min(page, pages)
+    logs = db.execute(
+        f'SELECT ll.*, u.full_name {base} ORDER BY ll.timestamp DESC LIMIT ? OFFSET ?',
+        params + [LIST_PER_PAGE, (page - 1) * LIST_PER_PAGE]
     ).fetchall()
-    return render_template('users/login_history.html', logs=logs)
+    return render_template('users/login_history.html', logs=logs, search=search, outcome=outcome,
+                           date_from=date_from, date_to=date_to, total=total, ok_count=ok_count,
+                           bad_count=total - ok_count, page=page, pages=pages)
 
 # ── ADMIN — EMPLOYER APPROVALS ────────────────────────────────────────────────
 @app.route('/admin/employers')
@@ -2693,4 +3181,4 @@ if __name__ == '__main__':
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
     print("PESO CSJDM running at: http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=os.environ.get('PESO_DEBUG', '0') == '1', host=os.environ.get('PESO_HOST', '127.0.0.1'), port=5000)

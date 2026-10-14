@@ -6,7 +6,12 @@
 (function () {
   var cache = {};
   function getJSON(url) {
-    if (!cache[url]) cache[url] = fetch(url).then(function (r) { return r.json(); });
+    if (!cache[url]) {
+      cache[url] = fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).catch(function (err) { delete cache[url]; throw err; });   // let the next attempt retry instead of reusing the failure
+    }
     return cache[url];
   }
   function norm(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
