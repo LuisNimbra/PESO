@@ -708,3 +708,16 @@ body { overflow-x: hidden; }
   box-shadow: 0 6px 14px rgba(30,58,95,.3);
 }
 .btn-view-details:active { transform: none; box-shadow: none; }
+
+/* Jobseeker dashboard */
+.dash-welcome { background: var(--peso-brand-grad); color: #fff; border-radius: 12px; padding: 1.5rem; }
+.dash-welcome p { opacity: .85; }
+.dash-card { border-radius: 12px; border: 1px solid var(--peso-border); box-shadow: 0 1px 3px rgba(15,23,42,.06); }
+.dash-steps { display: flex; gap: .5rem; flex-wrap: wrap; }
+.dash-step { display: flex; align-items: center; gap: .5rem; font-size: .85rem; font-weight: 600; color: #94a3b8; }
+.dash-step span { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #e2e8f0; color: #64748b; font-size: .8rem; }
+.dash-step + .dash-step::before { content: ""; width: 28px; height: 2px; background: #e2e8f0; margin-right: .25rem; }
+.dash-step.done { color: #16a34a; }
+.dash-step.done span { background: #16a34a; color: #fff; }
+.dash-step.current { color: #1e3a5f; }
+.dash-step.current span { background: #2563eb; color: #fff; }
